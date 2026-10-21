@@ -1,0 +1,25 @@
+HF_HOME: C:\aie1903\hf
+Loading model: facebook/mms-lid-126
+Model loaded. Device: CPU
+
+Clip: aishell_cmn_BAC009S0770W0259
+Saved sample: C:\aie1903\lid_project\samples\aishell_cmn_BAC009S0770W0259.wav
+Duration used (seconds): 4.229
+Top-1 language: cmn score: 0.999389
+Top-5:
+  1. cmn  0.999389
+  2. bod  0.000477
+  3. kor  0.000019
+  4. jpn  0.000013
+  5. vie  0.000009
+
+Clip: librispeech_eng_6930-75918-0000
+Saved sample: C:\aie1903\lid_project\samples\librispeech_eng_6930-75918-0000.wav
+Duration used (seconds): 3.505
+Top-1 language: eng score: 0.999296
+Top-5:
+  1. eng  0.999296
+  2. fas  0.000173
+  3. lat  0.000097
+  4. spa  0.000065
+  5. yid  0.000064

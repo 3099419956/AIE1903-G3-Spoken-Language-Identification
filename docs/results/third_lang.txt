@@ -1,0 +1,6 @@
+Three-language check with MMS-LID-126 (cmn / eng / kor).
+Korean clip is ONE utterance from PolyAI/minds14 ko-KR, not the full set.
+
+aishell_cmn_BAC009S0770W0259             gold=cmn  dur= 4.23s  top1=cmn      0.9994  YES  top5=cmn:0.9994, bod:0.0005, kor:0.0000, jpn:0.0000, vie:0.0000  file=C:\aie1903\lid_project\samples\aishell_cmn_BAC009S0770W0259.wav
+librispeech_eng_6930-75918-0000          gold=eng  dur= 3.50s  top1=eng      0.9993  YES  top5=eng:0.9993, fas:0.0002, lat:0.0001, spa:0.0001, yid:0.0001  file=C:\aie1903\lid_project\samples\librispeech_eng_6930-75918-0000.wav
+minds14_kor_602bef265f67b421554f65e7     gold=kor  dur= 5.21s  top1=kor      0.9999  YES  top5=kor:0.9999, cmn:0.0000, jpn:0.0000, mon:0.0000, zlm:0.0000  file=C:\aie1903\lid_project\samples\minds14_kor_602bef265f67b421554f65e7.wav
