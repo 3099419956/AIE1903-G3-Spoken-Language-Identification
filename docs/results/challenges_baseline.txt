@@ -1,0 +1,15 @@
+Baseline MMS-LID-126 on challenge set (no sliding window / reject yet).
+
+cmn_clean                cmn       4.23 cmn      0.9994  YES      cmn:0.999, bod:0.000, kor:0.000  file=C:\aie1903\lid_project\challenges\cmn_clean.wav
+eng_clean                eng       3.50 eng      0.9993  YES      eng:0.999, fas:0.000, lat:0.000  file=C:\aie1903\lid_project\challenges\eng_clean.wav
+cmn_0.5s                 cmn       0.50 mya      0.3831  NO       mya:0.383, vie:0.177, zlm:0.032  file=C:\aie1903\lid_project\challenges\cmn_0.5s.wav
+cmn_1.0s                 cmn       1.00 cmn      0.9951  YES      cmn:0.995, bod:0.002, vie:0.001  file=C:\aie1903\lid_project\challenges\cmn_1.0s.wav
+eng_0.5s                 eng       0.50 eng      0.8772  YES      eng:0.877, haw:0.015, lat:0.010  file=C:\aie1903\lid_project\challenges\eng_0.5s.wav
+eng_1.0s                 eng       1.00 eng      0.9959  YES      eng:0.996, fas:0.002, lat:0.000  file=C:\aie1903\lid_project\challenges\eng_1.0s.wav
+cmn_lead_silence_2s      cmn       6.23 cmn      0.9990  YES      cmn:0.999, bod:0.001, kor:0.000  file=C:\aie1903\lid_project\challenges\cmn_lead_silence_2s.wav
+cmn_snr5                 cmn       4.23 cmn      0.9909  YES      cmn:0.991, bod:0.007, mya:0.000  file=C:\aie1903\lid_project\challenges\cmn_snr5.wav
+eng_snr5                 eng       3.50 eng      0.9970  YES      eng:0.997, fas:0.001, lat:0.000  file=C:\aie1903\lid_project\challenges\eng_snr5.wav
+switch_cmn_then_eng      mixed     2.00 cmn      0.6973  n/a      cmn:0.697, eng:0.245, vie:0.005  file=C:\aie1903\lid_project\challenges\switch_cmn_then_eng.wav
+switch_eng_then_cmn      mixed     2.00 eng      0.7582  n/a      eng:0.758, cmn:0.176, sco:0.008  file=C:\aie1903\lid_project\challenges\switch_eng_then_cmn.wav
+
+Single-language accuracy: 8/9

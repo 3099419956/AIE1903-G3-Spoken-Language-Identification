@@ -4,7 +4,11 @@
 识别说话者使用的语言。项目基线采用 Meta 的 MMS 语种识别模型
 `facebook/mms-lid-126`。
 
-> 当前状态：仓库初始框架。数据集、实验结果、评估结果和最终报告尚未完成。
+> 当前状态（2026-10-21）：`scripts/` 里已有 MMS-LID-126 推理、HTML demo、挑战集评测。
+> 原始 wav 和模型权重不入库（gitignore）。课堂 PPT 和组员贡献表还没完成。
+>
+> 怎么跑：见 `docs/CODE.md` 与 `scripts/README.md`。
+> Hugging Face 缓存示例：`$env:HF_HOME = "C:\aie1903\hf"`
 
 ## 项目目标
 
@@ -60,9 +64,9 @@ $env:HF_HOME = "D:\hf-cache"
 
 ## 初始任务
 
-- [ ] 确定数据集、语言范围以及训练/验证/测试划分。
-- [ ] 复现 `facebook/mms-lid-126` 基线预测。
-- [ ] 确定主要评估指标，并统计各语言的分类结果。
-- [ ] 完成一项扩展实验或控制变量对照实验。
-- [ ] 补充错误分析并记录方法局限性。
-- [ ] 完成最终报告和课堂展示。
+- [x] 确定数据集、语言范围以及训练/验证/测试划分。（AISHELL `cmn`、LibriSpeech `eng`、MINDS-14 `kor`；不做训练划分，只用官方 checkpoint 推理）
+- [x] 复现 `facebook/mms-lid-126` 基线预测。（`scripts/run_lid.py`、`scripts/predict.py`）
+- [x] 确定主要评估指标，并统计各语言的分类结果。（Top-1 / 分数；挑战集 HIT/REJECT/MISS，见 `docs/results/`）
+- [x] 完成一项扩展实验或控制变量对照实验。（短切、噪声、1 s+1 s 拼接；滑动窗口 + 低分拒识）
+- [x] 补充错误分析并记录方法局限性。（0.5 s 中文、硬拼接混语、现场低分 `uncertain`）
+- [ ] 完成最终报告和课堂展示。（PPT / 讲稿 / 组员贡献表）

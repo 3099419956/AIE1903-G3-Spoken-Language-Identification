@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MMS LID-126 · Group 3</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --ink: #1c1915;
+      --muted: #5c564c;
+      --line: #d9d2c5;
+      --card: #fffdf8;
+      --accent: #1f4e79;
+      --ok: #1b7a4e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Noto Sans", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    h1 { font-size: 1.6rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin: 0 0 28px; }
+    .warn {
+      border: 1px solid var(--line);
+      background: var(--card);
+      padding: 10px 14px;
+      margin-bottom: 24px;
+      font-size: 0.92rem;
+    }
+    .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+    @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 18px;
+    }
+    h2 { font-size: 1.05rem; margin: 0 0 12px; color: var(--accent); }
+    button, .file {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--ink);
+      background: #fff;
+      padding: 8px 12px;
+      margin: 0 8px 8px 0;
+    }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .row { margin-bottom: 8px; }
+    audio { width: 100%; margin-top: 8px; }
+    #status { min-height: 1.4em; color: var(--muted); margin: 16px 0 8px; }
+    #result {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 18px;
+      min-height: 140px;
+    }
+    .top1 { font-size: 2rem; font-weight: 700; margin: 0; }
+    .top1 span { color: var(--ok); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    td { padding: 6px 0; border-bottom: 1px solid var(--line); }
+    .bar {
+      height: 8px;
+      background: #e8e2d6;
+      position: relative;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      background: var(--accent);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Spoken language identification</h1>
+    <p class="sub">MMS-LID-126 · AIE1903 Group 3 · language code only, not a transcript</p>
+    <p class="warn">This page talks to a local Python server. Keep <code>demo_server.py</code> running. First prediction loads a 1B-parameter model and can take about 30 seconds on CPU.</p>
+
+    <div class="grid">
+      <section>
+        <h2>1. Dataset recordings</h2>
+        <p class="sub">Real corpus clips, not TTS.</p>
+        <div class="row">
+          <button type="button" data-sample="cmn">Mandarin AISHELL</button>
+          <button type="button" data-sample="eng">English LibriSpeech</button>
+          <button type="button" data-sample="kor">Korean MINDS-14</button>
+        </div>
+        <audio id="samplePlayer" controls></audio>
+      </section>
+      <section>
+        <h2>2. Your own speech</h2>
+        <p class="sub">Upload a wav, or record in the browser (saved as WAV).</p>
+        <div class="row">
+          <input id="file" class="file" type="file" accept="audio/*,.wav,.flac,.mp3,.ogg" />
+        </div>
+        <div class="row">
+          <button type="button" id="recBtn">Record</button>
+          <button type="button" id="stopBtn" disabled>Stop</button>
+          <button type="button" class="primary" id="ownBtn" disabled>Identify</button>
+        </div>
+        <audio id="ownPlayer" controls></audio>
+      </section>
+    </div>
+
+    <p id="status"></p>
+    <div id="result"><p class="sub">Result will appear here.</p></div>
+  </main>
+  <script>
+    const statusEl = document.getElementById("status");
+    const resultEl = document.getElementById("result");
+    const samplePlayer = document.getElementById("samplePlayer");
+    const ownPlayer = document.getElementById("ownPlayer");
+    const recBtn = document.getElementById("recBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const ownBtn = document.getElementById("ownBtn");
+    let ownBlob = null;
+    let recState = null;
+
+    function setStatus(t) { statusEl.textContent = t; }
+
+    function render(data) {
+      const top = data.top5[0];
+      const low = top.score < 0.5;
+      const rows = data.top5.map((row) => {
+        const pct = Math.round(row.score * 1000) / 10;
+        return `<tr>
+          <td style="width:3.5rem">${row.rank}</td>
+          <td><strong>${row.code}</strong> · ${row.name}</td>
+          <td style="width:5rem">${row.score.toFixed(4)}</td>
+          <td style="width:40%"><div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div></td>
+        </tr>`;
+      }).join("");
+      const headline = low
+        ? `<p class="top1">Uncertain <span style="color:#8a3b12">(do not trust Top-1)</span></p>
+           <p>Highest score is only ${top.score.toFixed(4)} for ${top.code} (${top.name}). Paper-style LID is reliable on clean, several-second speech; a weak top-1 is not a decision.</p>`
+        : `<p class="top1">Top-1: <span>${top.code}</span></p>
+           <p>${top.name} · score ${top.score.toFixed(4)}</p>`;
+      resultEl.innerHTML = `
+        <p class="sub">${data.source} · ${data.duration_s.toFixed(2)} s used (cap 8 s)</p>
+        ${headline}
+        <table>${rows}</table>
+        <p class="sub">ISO 639-3 codes. This is not speech-to-text. We treat score &lt; 0.5 as uncertain.</p>`;
+    }
+
+    async function predictForm(form) {
+      setStatus("Running LID on CPU…");
+      const res = await fetch("/api/predict", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      render(data);
+      setStatus("Done.");
+    }
+
+    document.querySelectorAll("[data-sample]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-sample");
+        samplePlayer.src = "/sample-audio/" + id;
+        samplePlayer.play().catch(() => {});
+        try {
+          setStatus("Running LID on CPU…");
+          const res = await fetch("/api/sample/" + id);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || res.statusText);
+          render(data);
+          setStatus("Done.");
+        } catch (err) {
+          setStatus("Error: " + err.message);
+        }
+      });
+    });
+
+    document.getElementById("file").addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      ownBlob = f;
+      ownPlayer.src = URL.createObjectURL(f);
+      ownBtn.disabled = false;
+    });
+
+    ownBtn.addEventListener("click", async () => {
+      if (!ownBlob) return;
+      const form = new FormData();
+      form.append("audio", ownBlob, ownBlob.name || "recording.wav");
+      form.append("source", "your recording");
+      try { await predictForm(form); }
+      catch (err) { setStatus("Error: " + err.message); }
+    });
+
+    function encodeWav(float32, sampleRate) {
+      const n = float32.length;
+      const buf = new ArrayBuffer(44 + n * 2);
+      const view = new DataView(buf);
+      const write = (off, str) => { for (let i = 0; i < str.length; i++) view.setUint8(off + i, str.charCodeAt(i)); };
+      write(0, "RIFF");
+      view.setUint32(4, 36 + n * 2, true);
+      write(8, "WAVE");
+      write(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      write(36, "data");
+      view.setUint32(40, n * 2, true);
+      let p = 44;
+      for (let i = 0; i < n; i++, p += 2) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        view.setInt16(p, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return new Blob([buf], { type: "audio/wav" });
+    }
+
+    recBtn.addEventListener("click", async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream);
+      const proc = ctx.createScriptProcessor(4096, 1, 1);
+      const chunks = [];
+      proc.onaudioprocess = (ev) => { chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0))); };
+      src.connect(proc);
+      proc.connect(ctx.destination);
+      recState = { stream, ctx, proc, chunks, sr: ctx.sampleRate };
+      recBtn.disabled = true;
+      stopBtn.disabled = false;
+      setStatus("Recording… speak clearly for 2–5 seconds.");
+    });
+
+    stopBtn.addEventListener("click", async () => {
+      if (!recState) return;
+      recState.proc.disconnect();
+      recState.stream.getTracks().forEach((t) => t.stop());
+      await recState.ctx.close();
+      let n = 0;
+      recState.chunks.forEach((c) => { n += c.length; });
+      const all = new Float32Array(n);
+      let o = 0;
+      recState.chunks.forEach((c) => { all.set(c, o); o += c.length; });
+      ownBlob = encodeWav(all, recState.sr);
+      ownBlob.name = "microphone.wav";
+      ownPlayer.src = URL.createObjectURL(ownBlob);
+      ownBtn.disabled = false;
+      recBtn.disabled = false;
+      stopBtn.disabled = true;
+      recState = null;
+      setStatus("Recording saved. Click Identify.");
+    });
+  </script>
+</body>
+</html>
