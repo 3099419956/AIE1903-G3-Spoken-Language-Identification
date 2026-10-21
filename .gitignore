@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Data and audio
+data/raw/
+data/processed/
+data/external/
+*.wav
+*.mp3
+*.flac
+*.m4a
+*.ogg
+
+# Model artifacts and experiment output
+models/
+checkpoints/
+outputs/
+runs/
+wandb/
+mlruns/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Detection event datasets
+*-events.out.tfevents.*
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local archives
+*.zip
+*.7z
+*.tar
+*.tar.gz
