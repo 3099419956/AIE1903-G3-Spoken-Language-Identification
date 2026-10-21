@@ -18,8 +18,9 @@ python run_third_lang.py
 | File | Role |
 |------|------|
 | `predict.py` | CLI: one wav → Top-5 language scores |
-| `demo_server.py` | local page at http://127.0.0.1:8765/ |
-| `demo/index.html` | upload / record / dataset clips |
+| `demo_server.py` | local page at http://127.0.0.1:8765/ (record timer, save wav, Identify) |
+| `demo/index.html` | dataset clips + microphone + saved-file list |
+| `recordings/` | live wavs written on Stop (gitignored) |
 | `run_lid.py` | whole-clip LID on AISHELL + LibriSpeech |
 | `eval_challenges.py` | short / noise / concat baseline |
 | `eval_improved.py` | sliding window + reject + fallback |

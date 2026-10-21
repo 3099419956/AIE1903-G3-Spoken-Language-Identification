@@ -13,6 +13,7 @@
       --card: #fffdf8;
       --accent: #1f4e79;
       --ok: #1b7a4e;
+      --rec: #c0392b;
     }
     * { box-sizing: border-box; }
     body {
@@ -55,15 +56,38 @@
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     .row { margin-bottom: 8px; }
     audio { width: 100%; margin-top: 8px; }
-    #status { min-height: 1.4em; color: var(--muted); margin: 16px 0 8px; }
+    #status {
+      min-height: 1.4em;
+      color: var(--muted);
+      margin: 16px 0 8px;
+      font-weight: 600;
+    }
+    #status.busy { color: var(--accent); }
+    #status.ok { color: var(--ok); }
     #result {
       background: var(--card);
       border: 1px solid var(--line);
       padding: 18px;
-      min-height: 140px;
+      min-height: 160px;
+    }
+    #result.flash {
+      animation: flash 1.2s ease-out;
+    }
+    @keyframes flash {
+      0% { box-shadow: 0 0 0 4px #e6b800; background: #fff4c2; }
+      100% { box-shadow: none; background: var(--card); }
     }
     .top1 { font-size: 2rem; font-weight: 700; margin: 0; }
     .top1 span { color: var(--ok); }
+    .run-tag {
+      display: inline-block;
+      background: #e6b800;
+      color: #1c1915;
+      font-weight: 700;
+      padding: 2px 8px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+    }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; }
     td { padding: 6px 0; border-bottom: 1px solid var(--line); }
     .bar {
@@ -76,13 +100,38 @@
       height: 100%;
       background: var(--accent);
     }
+    #recMeter {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      margin: 10px 0;
+      padding: 10px 12px;
+      background: #fdecea;
+      border: 2px solid var(--rec);
+      color: var(--rec);
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+    #recMeter.on { display: flex; }
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--rec);
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
+    #savedList button { font-size: 0.9rem; }
   </style>
 </head>
 <body>
   <main>
     <h1>Spoken language identification</h1>
     <p class="sub">MMS-LID-126 · AIE1903 Group 3 · language code only, not a transcript</p>
-    <p class="warn">This page talks to a local Python server. Keep <code>demo_server.py</code> running. First prediction loads a 1B-parameter model and can take about 30 seconds on CPU.</p>
+    <p class="warn">Keep <code>demo_server.py</code> running. CPU inference often takes 10–20 seconds. Watch the yellow result box, not only the word “Done”.</p>
 
     <div class="grid">
       <section>
@@ -97,21 +146,29 @@
       </section>
       <section>
         <h2>2. Your own speech</h2>
-        <p class="sub">Upload a wav, or record in the browser (saved as WAV).</p>
-        <div class="row">
-          <input id="file" class="file" type="file" accept="audio/*,.wav,.flac,.mp3,.ogg" />
+        <p class="sub">Record, save a wav, then Identify. You can come back and pick a saved file.</p>
+        <div id="recMeter">
+          <span class="dot"></span>
+          <span>RECORDING · <span id="recTime">0.0</span> s</span>
         </div>
         <div class="row">
           <button type="button" id="recBtn">Record</button>
           <button type="button" id="stopBtn" disabled>Stop</button>
+          <button type="button" id="saveBtn" disabled>Save WAV</button>
           <button type="button" class="primary" id="ownBtn" disabled>Identify</button>
         </div>
+        <div class="row">
+          <input id="file" class="file" type="file" accept="audio/*,.wav,.flac,.mp3,.ogg" />
+        </div>
         <audio id="ownPlayer" controls></audio>
+        <p class="sub" id="fileHint" style="margin:8px 0 0;">No local recording yet.</p>
+        <h2 style="margin-top:16px;">Saved on this computer</h2>
+        <div id="savedList" class="row"><span class="sub">None yet.</span></div>
       </section>
     </div>
 
-    <p id="status"></p>
-    <div id="result"><p class="sub">Result will appear here.</p></div>
+    <p id="status">Ready.</p>
+    <div id="result"><p class="sub">Result will appear here after Identify finishes.</p></div>
   </main>
   <script>
     const statusEl = document.getElementById("status");
@@ -120,13 +177,35 @@
     const ownPlayer = document.getElementById("ownPlayer");
     const recBtn = document.getElementById("recBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const saveBtn = document.getElementById("saveBtn");
     const ownBtn = document.getElementById("ownBtn");
+    const recMeter = document.getElementById("recMeter");
+    const recTime = document.getElementById("recTime");
+    const fileHint = document.getElementById("fileHint");
+    const savedList = document.getElementById("savedList");
     let ownBlob = null;
     let recState = null;
+    let runId = 0;
+    let recTimer = null;
 
-    function setStatus(t) { statusEl.textContent = t; }
+    function setStatus(t, kind) {
+      statusEl.textContent = t;
+      statusEl.className = kind || "";
+    }
+
+    function stamp() {
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      return (
+        d.getFullYear().toString() +
+        p(d.getMonth() + 1) +
+        p(d.getDate()) + "_" +
+        p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds())
+      );
+    }
 
     function render(data) {
+      runId += 1;
       const top = data.top5[0];
       const low = top.score < 0.5;
       const rows = data.top5.map((row) => {
@@ -140,23 +219,40 @@
       }).join("");
       const headline = low
         ? `<p class="top1">Uncertain <span style="color:#8a3b12">(do not trust Top-1)</span></p>
-           <p>Highest score is only ${top.score.toFixed(4)} for ${top.code} (${top.name}). Paper-style LID is reliable on clean, several-second speech; a weak top-1 is not a decision.</p>`
+           <p>Highest score is only ${top.score.toFixed(4)} for ${top.code} (${top.name}).</p>`
         : `<p class="top1">Top-1: <span>${top.code}</span></p>
            <p>${top.name} · score ${top.score.toFixed(4)}</p>`;
+      resultEl.classList.remove("flash");
       resultEl.innerHTML = `
+        <div class="run-tag">NEW RESULT #${runId} · ${new Date().toLocaleTimeString()}</div>
         <p class="sub">${data.source} · ${data.duration_s.toFixed(2)} s used (cap 8 s)</p>
         ${headline}
         <table>${rows}</table>
-        <p class="sub">ISO 639-3 codes. This is not speech-to-text. We treat score &lt; 0.5 as uncertain.</p>`;
+        <p class="sub">ISO 639-3 codes. Not speech-to-text. Score &lt; 0.5 is treated as uncertain.</p>`;
+      void resultEl.offsetWidth;
+      resultEl.classList.add("flash");
+      resultEl.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
     async function predictForm(form) {
-      setStatus("Running LID on CPU…");
-      const res = await fetch("/api/predict", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || res.statusText);
-      render(data);
-      setStatus("Done.");
+      const t0 = Date.now();
+      resultEl.classList.remove("flash");
+      resultEl.innerHTML = `<p class="top1">Identifying…</p><p>CPU, often 10–20 seconds. The yellow box below will update when it finishes.</p>`;
+      const tick = setInterval(() => {
+        const s = ((Date.now() - t0) / 1000).toFixed(1);
+        setStatus("Still running on CPU… " + s + " s", "busy");
+      }, 200);
+      setStatus("Running LID on CPU…", "busy");
+      try {
+        const res = await fetch("/api/predict", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        render(data);
+        const s = ((Date.now() - t0) / 1000).toFixed(1);
+        setStatus("Result #" + runId + " is in the yellow box below (" + s + " s).", "ok");
+      } finally {
+        clearInterval(tick);
+      }
     }
 
     document.querySelectorAll("[data-sample]").forEach((btn) => {
@@ -164,32 +260,36 @@
         const id = btn.getAttribute("data-sample");
         samplePlayer.src = "/sample-audio/" + id;
         samplePlayer.play().catch(() => {});
-        try {
-          setStatus("Running LID on CPU…");
-          const res = await fetch("/api/sample/" + id);
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || res.statusText);
-          render(data);
-          setStatus("Done.");
-        } catch (err) {
-          setStatus("Error: " + err.message);
-        }
+        const form = new FormData();
+        const resAudio = await fetch("/sample-audio/" + id);
+        const blob = await resAudio.blob();
+        form.append("audio", blob, id + ".wav");
+        form.append("source", "dataset: " + id);
+        try { await predictForm(form); }
+        catch (err) { setStatus("Error: " + err.message); }
       });
     });
+
+    function holdBlob(blob, name, hint) {
+      ownBlob = blob;
+      ownBlob.name = name;
+      ownPlayer.src = URL.createObjectURL(blob);
+      ownBtn.disabled = false;
+      saveBtn.disabled = false;
+      fileHint.textContent = hint;
+    }
 
     document.getElementById("file").addEventListener("change", (e) => {
       const f = e.target.files[0];
       if (!f) return;
-      ownBlob = f;
-      ownPlayer.src = URL.createObjectURL(f);
-      ownBtn.disabled = false;
+      holdBlob(f, f.name, "Loaded from disk: " + f.name);
     });
 
     ownBtn.addEventListener("click", async () => {
       if (!ownBlob) return;
       const form = new FormData();
       form.append("audio", ownBlob, ownBlob.name || "recording.wav");
-      form.append("source", "your recording");
+      form.append("source", "your recording: " + (ownBlob.name || "recording.wav"));
       try { await predictForm(form); }
       catch (err) { setStatus("Error: " + err.message); }
     });
@@ -220,23 +320,93 @@
       return new Blob([buf], { type: "audio/wav" });
     }
 
+    async function refreshSaved() {
+      try {
+        const res = await fetch("/api/recordings");
+        const data = await res.json();
+        const files = data.files || [];
+        if (!files.length) {
+          savedList.innerHTML = '<span class="sub">None yet.</span>';
+          return;
+        }
+        savedList.innerHTML = files.map((name) =>
+          `<button type="button" data-saved="${name}">${name}</button>`
+        ).join("");
+        savedList.querySelectorAll("[data-saved]").forEach((btn) => {
+          btn.addEventListener("click", async () => {
+            const name = btn.getAttribute("data-saved");
+            const res2 = await fetch("/recording-audio/" + encodeURIComponent(name));
+            const blob = await res2.blob();
+            holdBlob(blob, name, "Loaded saved file: " + name + ". Click Identify.");
+            setStatus("Loaded " + name + ". Click Identify when you want the score.", "ok");
+          });
+        });
+      } catch (err) {
+        savedList.innerHTML = '<span class="sub">Could not list saved files.</span>';
+      }
+    }
+
+    async function saveCurrent(downloadToo) {
+      if (!ownBlob) return;
+      const name = ownBlob.name || ("live_" + stamp() + ".wav");
+      if (downloadToo) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(ownBlob);
+        a.download = name;
+        a.click();
+      }
+      const form = new FormData();
+      form.append("audio", ownBlob, name);
+      const res = await fetch("/api/save", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "save failed");
+      await refreshSaved();
+      return data.filename || name;
+    }
+
+    saveBtn.addEventListener("click", async () => {
+      try {
+        const name = await saveCurrent(true);
+        setStatus("Saved " + name + " (Downloads + recordings folder). You can Identify later.", "ok");
+      } catch (err) {
+        setStatus("Save error: " + err.message);
+      }
+    });
+
     recBtn.addEventListener("click", async () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const ctx = new AudioContext();
       const src = ctx.createMediaStreamSource(stream);
       const proc = ctx.createScriptProcessor(4096, 1, 1);
+      const mute = ctx.createGain();
+      mute.gain.value = 0;
       const chunks = [];
-      proc.onaudioprocess = (ev) => { chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0))); };
+      proc.onaudioprocess = (ev) => {
+        chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
+      };
       src.connect(proc);
-      proc.connect(ctx.destination);
-      recState = { stream, ctx, proc, chunks, sr: ctx.sampleRate };
+      proc.connect(mute);
+      mute.connect(ctx.destination);
+      recState = { stream, ctx, proc, chunks, sr: ctx.sampleRate, t0: Date.now() };
       recBtn.disabled = true;
       stopBtn.disabled = false;
-      setStatus("Recording… speak clearly for 2–5 seconds.");
+      saveBtn.disabled = true;
+      ownBtn.disabled = true;
+      recMeter.classList.add("on");
+      recTime.textContent = "0.0";
+      recTimer = setInterval(() => {
+        const s = ((Date.now() - recState.t0) / 1000).toFixed(1);
+        recTime.textContent = s;
+        setStatus("RECORDING now · " + s + " s · click Stop when you finish.", "busy");
+      }, 100);
+      setStatus("RECORDING started. Speak 3–5 seconds.", "busy");
     });
 
     stopBtn.addEventListener("click", async () => {
       if (!recState) return;
+      if (recTimer) clearInterval(recTimer);
+      recTimer = null;
+      recMeter.classList.remove("on");
       recState.proc.disconnect();
       recState.stream.getTracks().forEach((t) => t.stop());
       await recState.ctx.close();
@@ -245,15 +415,21 @@
       const all = new Float32Array(n);
       let o = 0;
       recState.chunks.forEach((c) => { all.set(c, o); o += c.length; });
-      ownBlob = encodeWav(all, recState.sr);
-      ownBlob.name = "microphone.wav";
-      ownPlayer.src = URL.createObjectURL(ownBlob);
-      ownBtn.disabled = false;
+      const dur = (n / recState.sr).toFixed(1);
+      const name = "live_" + stamp() + ".wav";
+      holdBlob(encodeWav(all, recState.sr), name, "Stopped. " + dur + " s in memory as " + name);
       recBtn.disabled = false;
       stopBtn.disabled = true;
       recState = null;
-      setStatus("Recording saved. Click Identify.");
+      try {
+        const saved = await saveCurrent(false);
+        setStatus("Stopped after " + dur + " s. Saved as " + saved + ". Click Identify, or pick it later from the list.", "ok");
+      } catch (err) {
+        setStatus("Stopped after " + dur + " s, but auto-save failed: " + err.message + ". Use Save WAV.");
+      }
     });
+
+    refreshSaved();
   </script>
 </body>
 </html>

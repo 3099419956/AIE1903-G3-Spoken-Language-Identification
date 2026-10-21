@@ -50,6 +50,8 @@ python demo_server.py
 
 Then open Chrome at `http://127.0.0.1:8765/` . Leave the terminal open. First load of the model is ~30 s on CPU.
 
+The Record button shows a red timer. Stop writes a wav under `scripts/recordings/` (or `recordings/` next to `demo_server.py`). Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
+
 Command-line entry (same official whole-clip LID):
 
 ```text

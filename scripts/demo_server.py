@@ -26,6 +26,7 @@ PORT = 8765
 ROOT = Path(__file__).resolve().parent
 HTML = ROOT / "demo" / "index.html"
 SAMPLE_DIR = ROOT / "samples"
+RECORD_DIR = ROOT / "recordings"
 
 SAMPLES = {
     "cmn": SAMPLE_DIR / "aishell_cmn_BAC009S0770W0259.wav",
@@ -110,6 +111,24 @@ def read_wav_bytes(raw: bytes) -> tuple[np.ndarray, int]:
     return np.asarray(wav, dtype=np.float32), int(sr)
 
 
+def safe_wav_name(name: str) -> str:
+    base = Path(name or "").name
+    if not base.lower().endswith(".wav"):
+        base = base + ".wav"
+    keep = "".join(ch for ch in base if ch.isalnum() or ch in ("-", "_", "."))
+    if not keep.endswith(".wav") or keep == ".wav":
+        keep = "live.wav"
+    return keep
+
+
+def list_recordings() -> list[str]:
+    if not RECORD_DIR.is_dir():
+        return []
+    names = [p.name for p in RECORD_DIR.glob("*.wav") if p.is_file()]
+    names.sort(reverse=True)
+    return names[:40]
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         print(self.address_string(), fmt % args)
@@ -139,6 +158,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             self._send(200, wav_path.read_bytes(), "audio/wav")
             return
+        if path == "/api/recordings":
+            self._json(200, {"files": list_recordings()})
+            return
+        if path.startswith("/recording-audio/"):
+            name = safe_wav_name(path.rsplit("/", 1)[-1])
+            wav_path = RECORD_DIR / name
+            if wav_path.parent != RECORD_DIR or not wav_path.is_file():
+                self._json(404, {"error": "unknown recording"})
+                return
+            self._send(200, wav_path.read_bytes(), "audio/wav")
+            return
         if path.startswith("/api/sample/"):
             key = path.rsplit("/", 1)[-1]
             wav_path = SAMPLES.get(key)
@@ -155,11 +185,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._json(404, {"error": "not found"})
 
-    def do_POST(self) -> None:
-        path = urlparse(self.path).path
-        if path != "/api/predict":
-            self._json(404, {"error": "not found"})
-            return
+    def _read_audio_form(self):
         env = {
             "REQUEST_METHOD": "POST",
             "CONTENT_TYPE": self.headers.get("Content-Type", ""),
@@ -167,12 +193,32 @@ class Handler(BaseHTTPRequestHandler):
         }
         form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ=env)
         if "audio" not in form:
-            self._json(400, {"error": "missing audio"})
-            return
+            return None, None, form
         item = form["audio"]
         raw = item.file.read()
+        filename = getattr(item, "filename", None) or "recording.wav"
+        return raw, filename, form
+
+    def do_POST(self) -> None:
+        path = urlparse(self.path).path
+        if path == "/api/save":
+            raw, filename, _form = self._read_audio_form()
+            if not raw:
+                self._json(400, {"error": "missing audio"})
+                return
+            RECORD_DIR.mkdir(parents=True, exist_ok=True)
+            name = safe_wav_name(filename)
+            dest = RECORD_DIR / name
+            dest.write_bytes(raw)
+            print("Saved recording:", dest, flush=True)
+            self._json(200, {"filename": name})
+            return
+        if path != "/api/predict":
+            self._json(404, {"error": "not found"})
+            return
+        raw, filename, form = self._read_audio_form()
         if not raw:
-            self._json(400, {"error": "empty audio"})
+            self._json(400, {"error": "missing audio"})
             return
         source = "your recording"
         if "source" in form:
@@ -188,8 +234,9 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global PROCESSOR, MODEL
-    torch.set_num_threads(1)
-    print("Loading", MODEL_ID, "once (CPU, ~30s)...", flush=True)
+    n_threads = min(8, os.cpu_count() or 4)
+    torch.set_num_threads(n_threads)
+    print("Loading", MODEL_ID, "once (CPU, ~30s, threads=%d)..." % n_threads, flush=True)
     PROCESSOR = AutoFeatureExtractor.from_pretrained(MODEL_ID)
     MODEL = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
     MODEL.eval()
