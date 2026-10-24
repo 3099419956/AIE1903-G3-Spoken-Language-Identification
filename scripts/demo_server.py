@@ -17,6 +17,8 @@ import soundfile as sf
 import torch
 from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
+from pipeline import run as run_pipeline
+
 MODEL_ID = "facebook/mms-lid-126"
 TARGET_SR = 16000
 MAX_SECONDS = 8.0
@@ -32,6 +34,15 @@ SAMPLES = {
     "cmn": SAMPLE_DIR / "aishell_cmn_BAC009S0770W0259.wav",
     "eng": SAMPLE_DIR / "librispeech_eng_6930-75918-0000.wav",
     "kor": SAMPLE_DIR / "minds14_kor_602bef265f67b421554f65e7.wav",
+}
+
+CASE_DIR = ROOT / "challenges"
+CASES = {
+    "clean": CASE_DIR / "cmn_clean.wav",
+    "noisy": CASE_DIR / "cmn_snr5.wav",
+    "short": CASE_DIR / "cmn_0.5s.wav",
+    "silence": CASE_DIR / "cmn_lead_silence_2s.wav",
+    "switch": CASE_DIR / "switch_cmn_then_eng.wav",
 }
 
 # Short English names for codes we actually show in the demo.
@@ -81,27 +92,27 @@ def to_16k(wav: np.ndarray, sr: int) -> np.ndarray:
 
 
 def predict_array(wav: np.ndarray, sr: int, source: str) -> dict:
-    x = to_16k(wav, sr)
-    inputs = PROCESSOR(x, sampling_rate=TARGET_SR, return_tensors="pt")
     with INFER_LOCK:
-        with torch.no_grad():
-            logits = MODEL(**inputs).logits
-    probs = torch.softmax(logits.float(), dim=-1)[0]
-    values, indices = torch.topk(probs, k=TOP_K)
+        out = run_pipeline(MODEL, PROCESSOR, wav, sr)
     top5 = []
-    for rank, (score, idx) in enumerate(zip(values.tolist(), indices.tolist()), start=1):
-        code = str(MODEL.config.id2label[int(idx)])
+    for row in out["top5"]:
+        code = row["code"]
         top5.append(
             {
-                "rank": rank,
+                "rank": row["rank"],
                 "code": code,
                 "name": NAMES.get(code, code),
-                "score": float(score),
+                "score": row["score"],
             }
         )
     return {
         "source": source,
-        "duration_s": float(x.shape[0] / TARGET_SR),
+        "duration_s": out["duration_s"],
+        "snr_db": out["snr_db"],
+        "decision": out["decision"],
+        "steps": out["steps"],
+        "related_warning": out["related_warning"],
+        "windows": out["windows"],
         "top5": top5,
     }
 
@@ -168,6 +179,28 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(404, {"error": "unknown recording"})
                 return
             self._send(200, wav_path.read_bytes(), "audio/wav")
+            return
+        if path.startswith("/case-audio/"):
+            key = path.rsplit("/", 1)[-1]
+            wav_path = CASES.get(key)
+            if wav_path is None or not wav_path.is_file():
+                self._json(404, {"error": "unknown case"})
+                return
+            self._send(200, wav_path.read_bytes(), "audio/wav")
+            return
+        if path.startswith("/api/case/"):
+            key = path.rsplit("/", 1)[-1]
+            wav_path = CASES.get(key)
+            if wav_path is None or not wav_path.is_file():
+                self._json(404, {"error": "unknown case"})
+                return
+            wav, sr = sf.read(str(wav_path), dtype="float32")
+            try:
+                out = predict_array(np.asarray(wav, dtype=np.float32), int(sr), "case: " + key)
+            except Exception as exc:
+                self._json(500, {"error": str(exc)})
+                return
+            self._json(200, out)
             return
         if path.startswith("/api/sample/"):
             key = path.rsplit("/", 1)[-1]

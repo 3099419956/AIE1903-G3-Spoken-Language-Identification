@@ -167,6 +167,19 @@
       </section>
     </div>
 
+    <section style="margin-top:16px;">
+      <h2>3. Checks we already ran</h2>
+      <p class="sub">Same pipeline as Identify. Clean clips are not denoised. Windows run only if the whole clip looks like two languages.</p>
+      <div class="row">
+        <button type="button" data-case="clean">Clean Mandarin</button>
+        <button type="button" data-case="silence">Leading silence</button>
+        <button type="button" data-case="short">0.5 s Mandarin</button>
+        <button type="button" data-case="noisy">Noisy Mandarin</button>
+        <button type="button" data-case="switch">Mandarin then English</button>
+      </div>
+      <audio id="casePlayer" controls></audio>
+    </section>
+
     <p id="status">Ready.</p>
     <div id="result"><p class="sub">Result will appear here after Identify finishes.</p></div>
   </main>
@@ -206,9 +219,9 @@
 
     function render(data) {
       runId += 1;
-      const top = data.top5[0];
+      const top = (data.top5 && data.top5[0]) || { code: "—", name: "—", score: 0 };
       const low = top.score < 0.5;
-      const rows = data.top5.map((row) => {
+      const rows = (data.top5 || []).map((row) => {
         const pct = Math.round(row.score * 1000) / 10;
         return `<tr>
           <td style="width:3.5rem">${row.rank}</td>
@@ -217,16 +230,34 @@
           <td style="width:40%"><div class="bar"><i style="width:${Math.min(100, pct)}%"></i></div></td>
         </tr>`;
       }).join("");
-      const headline = low
-        ? `<p class="top1">Uncertain <span style="color:#8a3b12">(do not trust Top-1)</span></p>
-           <p>Highest score is only ${top.score.toFixed(4)} for ${top.code} (${top.name}).</p>`
-        : `<p class="top1">Top-1: <span>${top.code}</span></p>
+      const decision = data.decision || "";
+      let headline;
+      if (decision === "no-speech") {
+        headline = `<p class="top1">No speech</p><p>Nothing to identify. No language code is returned.</p>`;
+      } else if (decision === "uncertain" || low) {
+        headline = `<p class="top1">Uncertain <span style="color:#8a3b12">(do not trust Top-1)</span></p>
+           <p>Highest score is only ${top.score.toFixed(4)} for ${top.code} (${top.name}).</p>`;
+      } else if (decision.startsWith("mixed:")) {
+        headline = `<p class="top1">Mixed: <span>${decision.slice(6)}</span></p>
+           <p>Two windows each cleared 0.5. This is a hard splice, not free code-switching.</p>`;
+      } else {
+        headline = `<p class="top1">Top-1: <span>${top.code}</span></p>
            <p>${top.name} · score ${top.score.toFixed(4)}</p>`;
+      }
+      const related = data.related_warning
+        ? `<p>Mandarin and Yue are both near the top and close in score. Do not trust Top-1 alone.</p>`
+        : "";
+      const steps = (data.steps || []).map((s) =>
+        `<li><strong>${s.name}</strong> · ${s.action} · ${s.detail}</li>`
+      ).join("");
+      const stepBlock = steps ? `<ol>${steps}</ol>` : "";
       resultEl.classList.remove("flash");
       resultEl.innerHTML = `
         <div class="run-tag">NEW RESULT #${runId} · ${new Date().toLocaleTimeString()}</div>
         <p class="sub">${data.source} · ${data.duration_s.toFixed(2)} s used (cap 8 s)</p>
         ${headline}
+        ${related}
+        ${stepBlock}
         <table>${rows}</table>
         <p class="sub">ISO 639-3 codes. Not speech-to-text. Score &lt; 0.5 is treated as uncertain.</p>`;
       void resultEl.offsetWidth;
@@ -254,6 +285,25 @@
         clearInterval(tick);
       }
     }
+
+    document.querySelectorAll("[data-case]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = btn.getAttribute("data-case");
+        const player = document.getElementById("casePlayer");
+        player.src = "/case-audio/" + id;
+        player.play().catch(() => {});
+        try {
+          setStatus("Running the check pipeline on CPU…", "busy");
+          const res = await fetch("/api/case/" + id);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || res.statusText);
+          render(data);
+          setStatus("Result #" + runId + " is in the box below.", "ok");
+        } catch (err) {
+          setStatus("Error: " + err.message);
+        }
+      });
+    });
 
     document.querySelectorAll("[data-sample]").forEach((btn) => {
       btn.addEventListener("click", async () => {

@@ -1,0 +1,39 @@
+LID after denoising. spectral = noisereduce (not a neural net).
+kept = 1s windows with score >= 0.5.
+
+== cmn_clean
+raw        snr= 28.1  whole=cmn 0.999  windows 7/7 ['cmn']
+dns48      snr= 42.4  whole=cmn 1.000  windows 6/7 ['cmn']
+dns64      snr= 29.7  whole=cmn 1.000  windows 6/7 ['cmn']
+spectral   snr= 58.2  whole=cmn 0.999  windows 6/7 ['cmn']
+
+== eng_clean
+raw        snr= 27.7  whole=eng 0.999  windows 5/6 ['eng']
+dns48      snr= 31.2  whole=eng 0.999  windows 5/6 ['eng']
+dns64      snr= 32.1  whole=eng 0.999  windows 5/6 ['eng']
+spectral   snr= 70.3  whole=eng 0.997  windows 5/6 ['eng']
+
+== cmn_snr5
+raw        snr=  9.9  whole=cmn 0.991  windows 0/7 []
+dns48      snr= 48.2  whole=cmn 0.989  windows 3/7 ['mya', 'cmn']
+dns64      snr= 40.7  whole=cmn 0.992  windows 3/7 ['yue', 'cmn']
+spectral   snr= 21.5  whole=cmn 0.985  windows 1/7 ['cmn']
+
+== eng_snr5
+raw        snr=  9.2  whole=eng 0.997  windows 4/6 ['eng']
+dns48      snr= 36.9  whole=eng 0.998  windows 5/6 ['eng']
+dns64      snr= 41.5  whole=eng 0.998  windows 5/6 ['eng']
+spectral   snr= 24.8  whole=eng 0.984  windows 4/6 ['eng']
+
+== cmn_snr0
+raw        snr=  5.1  whole=cmn 0.600  windows 1/7 ['jpn']
+dns48      snr= 52.6  whole=cmn 0.946  windows 1/7 ['cmn']
+dns64      snr= 47.3  whole=cmn 0.463  windows 0/7 []
+spectral   snr= 16.1  whole=cmn 0.799  windows 1/7 ['cmn']
+
+== eng_snr0
+raw        snr=  4.1  whole=eng 0.994  windows 4/6 ['eng']
+dns48      snr= 40.5  whole=eng 0.998  windows 4/6 ['eng']
+dns64      snr= 48.8  whole=eng 0.997  windows 4/6 ['eng']
+spectral   snr= 18.7  whole=eng 0.928  windows 2/6 ['eng', 'war']
+

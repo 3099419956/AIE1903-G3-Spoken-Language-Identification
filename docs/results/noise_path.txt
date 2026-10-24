@@ -1,0 +1,65 @@
+Current pipeline on noisy audio. Denoise only if noisy AND whole-clip score < 0.5.
+
+cmn_snr5.wav -> cmn  top=cmn 0.991  snr=9.92688692576691
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–4.23s kept
+  snr: noisy | 9.9 dB
+  gain: skip | level ok, no gain
+  path: whole | 4.23s, official whole-clip LID
+  denoise: skip | noisy but whole-clip score 0.991 is already high
+  windows: skip | one confident language, no switch check
+
+eng_snr5.wav -> eng  top=eng 0.997  snr=9.196094569086066
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–3.50s kept
+  snr: noisy | 9.2 dB
+  gain: skip | level ok, no gain
+  path: whole | 3.50s, official whole-clip LID
+  denoise: skip | noisy but whole-clip score 0.997 is already high
+  windows: skip | one confident language, no switch check
+
+cmn_0.5s.wav -> uncertain  top=mya 0.383  snr=5.893327880760885
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–0.50s kept
+  snr: noisy | 5.9 dB
+  gain: skip | level ok, no gain
+  path: short | 0.50s, one pass
+  denoise: skip | short clip is not denoised
+  windows: skip | short clip is not sliced
+
+live_20261021_231952.wav -> yue  top=yue 0.917  snr=51.20458232795612
+  format: done | 1 ch, 48000 Hz -> mono 16 kHz
+  trim: done | 0.00s–6.43s kept
+  snr: clean | 51.2 dB
+  gain: skip | clean clip, level left unchanged
+  path: whole | 6.43s, official whole-clip LID
+  denoise: skip | clean
+  windows: skip | one confident language, no switch check
+
+cmn_plus_noise_0dB -> cmn  top=cmn 0.784  snr=5.26153035612264
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–4.23s kept
+  snr: noisy | 5.3 dB
+  gain: skip | level ok, no gain
+  path: whole | 4.23s, official whole-clip LID
+  denoise: skip | noisy but whole-clip score 0.784 is already high
+  windows: skip | one confident language, no switch check
+
+cmn_plus_noise_-5dB -> jpn  top=jpn 0.521  snr=0.4417166052396699
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–4.23s kept
+  snr: noisy | 0.4 dB
+  gain: skip | level ok, no gain
+  path: whole | 4.23s, official whole-clip LID
+  denoise: skip | noisy but whole-clip score 0.521 is already high
+  windows: skip | one confident language, no switch check
+
+cmn_plus_noise_-10dB -> uncertain  top=jpn 0.443  snr=-3.814885480611437
+  format: done | 1 ch, 16000 Hz already mono 16 kHz
+  trim: skip | 0.00s–4.23s kept
+  snr: noisy | -3.8 dB
+  gain: skip | level ok, no gain
+  path: whole | 4.23s, official whole-clip LID
+  denoise: done | dns48 because noisy and score 0.174; after jpn 0.443
+  windows: skip | one confident language, no switch check
+

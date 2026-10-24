@@ -4,7 +4,7 @@
 识别说话者使用的语言。项目基线采用 Meta 的 MMS 语种识别模型
 `facebook/mms-lid-126`。
 
-> 当前状态（2026-10-21）：`scripts/` 里已有 MMS-LID-126 推理、HTML demo、挑战集评测。
+> 当前状态（2026-10-24）：`scripts/` 里已有 MMS-LID-126 推理、HTML demo、五步检查（`pipeline.py`）和挑战集评测。
 > 原始 wav 和模型权重不入库（gitignore）。课堂 PPT 和组员贡献表还没完成。
 >
 > 怎么跑：见 `docs/CODE.md` 与 `scripts/README.md`。

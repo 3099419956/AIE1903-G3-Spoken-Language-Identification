@@ -1,0 +1,17 @@
+pipeline vs expected behavior (model weights unchanged)
+
+cmn_clean.wav                gold=cmn          got=cmn              OK   snr=19.715359363450816 top={'rank': 1, 'code': 'cmn', 'score': 0.9992735981941223} :: format:done | trim:done | snr:clean | gain:skip | path:whole | denoise:skip | windows:skip
+eng_clean.wav                gold=eng          got=eng              OK   snr=26.700415718905948 top={'rank': 1, 'code': 'eng', 'score': 0.9993520379066467} :: format:done | trim:done | snr:clean | gain:skip | path:whole | denoise:skip | windows:skip
+cmn_0.5s.wav                 gold=uncertain    got=uncertain        OK   snr=5.893327880760885 top={'rank': 1, 'code': 'mya', 'score': 0.3831005394458771} :: format:done | trim:skip | snr:noisy | gain:skip | path:short | denoise:skip | windows:skip
+cmn_1.0s.wav                 gold=cmn          got=cmn              OK   snr=14.881164891215695 top={'rank': 1, 'code': 'cmn', 'score': 0.9950153231620789} :: format:done | trim:skip | snr:noisy | gain:skip | path:short | denoise:skip | windows:skip
+eng_0.5s.wav                 gold=eng          got=eng              OK   snr=12.478131424987442 top={'rank': 1, 'code': 'eng', 'score': 0.8772001266479492} :: format:done | trim:skip | snr:noisy | gain:skip | path:short | denoise:skip | windows:skip
+eng_1.0s.wav                 gold=eng          got=eng              OK   snr=20.667773939058307 top={'rank': 1, 'code': 'eng', 'score': 0.9959463477134705} :: format:done | trim:skip | snr:clean | gain:skip | path:whole | denoise:skip | windows:skip
+cmn_lead_silence_2s.wav      gold=cmn          got=cmn              OK   snr=19.715359363450816 top={'rank': 1, 'code': 'cmn', 'score': 0.9992735981941223} :: format:done | trim:done | snr:clean | gain:skip | path:whole | denoise:skip | windows:skip
+cmn_snr5.wav                 gold=cmn          got=cmn              OK   snr=9.92688692576691 top={'rank': 1, 'code': 'cmn', 'score': 0.9908825755119324} :: format:done | trim:skip | snr:noisy | gain:skip | path:whole | denoise:skip | windows:skip
+eng_snr5.wav                 gold=eng          got=eng              OK   snr=9.196094569086066 top={'rank': 1, 'code': 'eng', 'score': 0.9969601631164551} :: format:done | trim:skip | snr:noisy | gain:skip | path:whole | denoise:skip | windows:skip
+switch_cmn_then_eng.wav      gold=mixed        got=mixed:cmn+eng    OK   snr=21.77089986185716 top={'rank': 1, 'code': 'cmn', 'score': 0.697330117225647} :: format:done | trim:skip | snr:clean | gain:skip | path:whole | denoise:skip | windows:done
+switch_eng_then_cmn.wav      gold=mixed        got=mixed:eng+cmn    OK   snr=19.682360435426503 top={'rank': 1, 'code': 'eng', 'score': 0.7444531321525574} :: format:done | trim:skip | snr:clean | gain:skip | path:whole | denoise:skip | windows:done
+live_20261021_231952.wav     gold=yue-or-cmn   got=yue              SEE  snr=51.20458232795612 top={'rank': 1, 'code': 'yue', 'score': 0.9165055155754089} :: format:done | trim:done | snr:clean | gain:skip | path:whole | denoise:skip | windows:skip
+silence_2s                   gold=no-speech    got=no-speech        OK
+
+scored OK 12/12 (live recording is SEE, not scored)
