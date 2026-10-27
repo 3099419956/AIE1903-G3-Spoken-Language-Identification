@@ -1,11 +1,10 @@
 # Documentation
 
-Keep lightweight project documents here, such as:
+Current documents:
 
-- Experiment notes and decision records
-- Evaluation protocol
-- Report drafts
-- Presentation outline
+- `CODE.md`: runnable commands, module layout, complexity, and contributions
+- `MIDTERM.md`: evidence, 15-minute slide outline, demo sequence, and limitations
+- `results/`: small text logs from the experiments
 
-Link each result to the code version, configuration, dataset manifest, and model
-checkpoint used to produce it.
+Keep report and presentation claims linked to one of these result logs. Raw audio
+and model weights stay outside Git.

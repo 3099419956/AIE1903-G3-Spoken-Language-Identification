@@ -3,9 +3,9 @@
 Clean speech of about 1 second or longer goes straight through.
 Denoise and sliding windows run only when the checks say they are needed.
 """
-import os
+from runtime import configure_cache
 
-os.environ.setdefault("TORCH_HOME", r"C:\aie1903\torch")
+configure_cache()
 
 import numpy as np
 import torch

@@ -32,8 +32,8 @@ Do not put API tokens in this folder.
 ## Environment
 
 - Conda env `speech_processing`, Python 3.10, CPU PyTorch
-- Hugging Face cache: `C:\aie1903\hf`
-- Interpreter we used: `D:\Anaconda3\envs\speech_processing\python.exe`
+- Standard Hugging Face / PyTorch caches by default
+- Optional shared cache root: set `AIE1903_CACHE_DIR`
 - Tested versions: `torch 2.14.0+cpu`, `transformers 5.20.0`
 - Packages used by the scripts: `torch`, `transformers`, `soundfile`, `numpy`, `librosa`, `pyarrow`, `huggingface_hub`
 - Optional: `denoiser` (Facebook dns48). `pipeline.py` imports it only when a clip is noisy and the whole-clip score is below 0.5. It is not in `requirements.txt`.
@@ -79,7 +79,20 @@ python run_third_lang.py
 | `eval_pipeline.py` | `scripts/challenges/*.wav`. A missing file is skipped | `docs/results/pipeline_eval.txt` |
 | `run_third_lang.py` | the two samples in `scripts/samples/`, plus one downloaded MINDS-14 `ko-KR` row | `scripts/samples/minds14_kor_*.wav` and `docs/results/third_lang.txt` |
 
-If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`. The `file=` column in the committed logs shows the folder used on the day of that run. Current scripts write under `scripts/` and `docs/results/`.
+If `AIE1903_CACHE_DIR` is unset, the scripts use the standard user caches. To reuse a shared cache, set it before running:
+
+```powershell
+$env:AIE1903_CACHE_DIR = "D:\aie1903-cache"
+```
+
+Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`. The `file=` column in the committed logs shows the folder used on the day of that run. Current scripts write under `scripts/` and `docs/results/`.
+
+Run the standard-library checks before opening the demo:
+
+```text
+python -m unittest discover -s tests -v
+python -m compileall -q scripts
+```
 
 ## Wrapper (our code, not a new model)
 
@@ -95,11 +108,12 @@ If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep 
 
 ## Complexity
 
-- Frozen model: Wav2Vec2 sequence classifier, ~1B parameters; 1280 → 1024 projector, then 126-way linear head.
-- Our code: eight Python files under `scripts/`, about 1200 lines, no training loop.
+- Frozen model: the course-suggested Wav2Vec2 language classification checkpoint with 126 labels.
+- The paper fine-tunes an MMS 1B pretrained model. We only run inference with the released checkpoint and do not train its weights.
+- Our code: inference, HTTP demo, and evaluation modules under `scripts/`; no training loop.
 - `demo_server.py` uses up to 8 CPU threads. `predict.py`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, and `run_third_lang.py` use 1 thread.
 - Runtime: one 4 s clip is often 10–20 s on CPU. `eval_improved.py` runs many 1 s forwards.
-- We do not fine-tune the 1B encoder.
+- We do not fine-tune the encoder or load the paper's 1B ASR model.
 
 ## Group contribution
 

@@ -4,8 +4,9 @@ import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
-os.environ.setdefault("HUGGINGFACE_HUB_CACHE", r"C:\aie1903\hf\hub")
+from runtime import configure_cache
+
+CACHE_LOCATION = configure_cache()
 
 import numpy as np
 import pyarrow.parquet as pq
@@ -105,7 +106,7 @@ def main() -> None:
         sys.exit(1)
 
     torch.set_num_threads(1)
-    print("HF_HOME:", os.environ["HF_HOME"])
+    print("HF_HOME:", CACHE_LOCATION)
     print("Loading model:", MODEL_ID)
     processor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
     model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)

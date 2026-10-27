@@ -1,7 +1,8 @@
 # Scripts
 
 Runnable entry points for Group 3 LID. Run these from this `scripts/` folder
-in the conda env `speech_processing`. Hugging Face cache: `C:\aie1903\hf`.
+in the conda env `speech_processing`. The scripts use standard user caches by
+default; set `AIE1903_CACHE_DIR` to reuse a shared cache.
 
 Paths are next to these scripts. Wavs go in `samples/` and `challenges/`.
 Result text goes in `docs/results/`.
@@ -28,6 +29,8 @@ python run_third_lang.py
 | `eval_improved.py` | earlier sliding-window experiment |
 | `eval_pipeline.py` | score the five webpage checks; looks for wavs in `challenges/` next to this script |
 | `run_third_lang.py` | same model on one Korean clip |
+| `runtime.py` | shared environment and cache configuration |
+| `http_form.py` | standard-library multipart parser for browser uploads |
 
 The webpage checks, in order: mono 16 kHz; stop if almost silent; trim silent edges only; one official whole-clip label. Denoise (dns48) runs only when the clip is noisy and the top score is below 0.5. One-second slices run only when the top two scores look like two languages. `pip install denoiser` is needed only for that rare denoise branch. Model weights stay frozen.
 

@@ -1,11 +1,10 @@
 """Build a challenge set and run baseline MMS-LID-126 (no improvements yet)."""
-import os
 import sys
 from pathlib import Path
 
-os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
-os.environ.setdefault("HUGGINGFACE_HUB_CACHE", r"C:\aie1903\hf\hub")
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+from runtime import configure_cache
+
+configure_cache()
 
 import numpy as np
 import soundfile as sf

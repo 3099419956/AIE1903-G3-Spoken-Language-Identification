@@ -1,5 +1,4 @@
 """Local HTML demo: dataset clips + your own recording -> MMS-LID-126 Top-5."""
-import cgi
 import io
 import json
 import os
@@ -8,15 +7,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
-os.environ.setdefault("HUGGINGFACE_HUB_CACHE", r"C:\aie1903\hf\hub")
-os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+from runtime import configure_cache
+
+configure_cache()
 
 import numpy as np
 import soundfile as sf
 import torch
 from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
+from http_form import MAX_UPLOAD_BYTES, parse_multipart_form, safe_wav_name
 from pipeline import run as run_pipeline
 
 MODEL_ID = "facebook/mms-lid-126"
@@ -122,16 +122,6 @@ def read_wav_bytes(raw: bytes) -> tuple[np.ndarray, int]:
     return np.asarray(wav, dtype=np.float32), int(sr)
 
 
-def safe_wav_name(name: str) -> str:
-    base = Path(name or "").name
-    if not base.lower().endswith(".wav"):
-        base = base + ".wav"
-    keep = "".join(ch for ch in base if ch.isalnum() or ch in ("-", "_", "."))
-    if not keep.endswith(".wav") or keep == ".wav":
-        keep = "live.wav"
-    return keep
-
-
 def list_recordings() -> list[str]:
     if not RECORD_DIR.is_dir():
         return []
@@ -219,23 +209,26 @@ class Handler(BaseHTTPRequestHandler):
         self._json(404, {"error": "not found"})
 
     def _read_audio_form(self):
-        env = {
-            "REQUEST_METHOD": "POST",
-            "CONTENT_TYPE": self.headers.get("Content-Type", ""),
-            "CONTENT_LENGTH": self.headers.get("Content-Length", "0"),
-        }
-        form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ=env)
-        if "audio" not in form:
-            return None, None, form
-        item = form["audio"]
-        raw = item.file.read()
-        filename = getattr(item, "filename", None) or "recording.wav"
-        return raw, filename, form
+        content_type = self.headers.get("Content-Type", "")
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise ValueError("invalid Content-Length header") from exc
+        if length <= 0:
+            raise ValueError("missing request body")
+        if length > MAX_UPLOAD_BYTES:
+            raise ValueError("audio upload is too large")
+        body = self.rfile.read(length)
+        return parse_multipart_form(content_type, body)
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/save":
-            raw, filename, _form = self._read_audio_form()
+            try:
+                raw, filename, _form = self._read_audio_form()
+            except ValueError as exc:
+                self._json(400, {"error": str(exc)})
+                return
             if not raw:
                 self._json(400, {"error": "missing audio"})
                 return
@@ -249,13 +242,17 @@ class Handler(BaseHTTPRequestHandler):
         if path != "/api/predict":
             self._json(404, {"error": "not found"})
             return
-        raw, filename, form = self._read_audio_form()
+        try:
+            raw, filename, form = self._read_audio_form()
+        except ValueError as exc:
+            self._json(400, {"error": str(exc)})
+            return
         if not raw:
             self._json(400, {"error": "missing audio"})
             return
         source = "your recording"
         if "source" in form:
-            source = str(form.getfirst("source") or source)
+            source = str(form.get("source") or source)
         try:
             wav, sr = read_wav_bytes(raw)
             out = predict_array(wav, sr, source)

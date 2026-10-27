@@ -2,8 +2,9 @@
 import os
 from pathlib import Path
 
-os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
-os.environ.setdefault("HUGGINGFACE_HUB_CACHE", r"C:\aie1903\hf\hub")
+from runtime import configure_cache
+
+configure_cache()
 
 import numpy as np
 import soundfile as sf

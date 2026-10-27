@@ -9,6 +9,7 @@
 > 原始 wav 和模型权重不入库。PPT 不在本仓库。代码贡献见下面的 Contribution。
 >
 > 怎么跑：见 `docs/CODE.md` 与 `scripts/README.md`。
+> 展示内容和 15 分钟页面安排：见 `docs/MIDTERM.md`。
 
 ## 项目目标
 
@@ -52,11 +53,21 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-模型文件可能较大。如果本地磁盘空间有限，可以把 Hugging Face 缓存放到
-仓库外部：
+模型文件可能较大。默认使用 Python、Hugging Face 和 PyTorch 的标准缓存。
+如果要复用已有的共享缓存，只需要设置一个目录；脚本不会再使用某个同学的
+私人绝对路径：
 
 ```powershell
-$env:HF_HOME = "D:\hf-cache"
+$env:AIE1903_CACHE_DIR = "D:\aie1903-cache"
+```
+
+不设置时，模型会下载到当前用户的标准缓存。第一次运行需要联网和足够磁盘空间。
+
+只检查标准库部分（不需要下载模型）：
+
+```powershell
+python -m unittest discover -s tests -v
+python -m compileall -q scripts
 ```
 
 ## 小组协作
@@ -75,10 +86,11 @@ $env:HF_HOME = "D:\hf-cache"
 
 ## 复杂度
 
-- 冻结模型：Wav2Vec2 序列分类，大约 10 亿参数。1280 维投影到 1024，再接到 126 个语言。
-- 我们的代码：`scripts/` 下 8 个 Python 文件，大约 1200 行，没有训练循环。
+- 冻结模型：课程建议的 Wav2Vec2 语种分类 checkpoint，最后接到 126 个语言。
+- 论文使用 MMS 1B 预训练模型并微调全部参数；本仓库只加载 126 语种 checkpoint 做推理，没有训练循环。
+- 我们的代码：`scripts/` 下的推理、网页和评测模块，没有修改模型权重。
 - 网页最多用 8 个 CPU 线程。`predict.py`、`run_lid.py`、`eval_challenges.py`、`eval_improved.py`、`run_third_lang.py` 仍固定 1 个线程。
-- 一条大约 4 秒的录音，在 CPU 上常常要十几秒。没有微调这 10 亿参数。
+- 一条大约 4 秒的录音，在 CPU 上常常要十几秒。我们没有训练或微调模型权重。
 
 ## Contribution
 
