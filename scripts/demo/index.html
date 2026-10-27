@@ -29,6 +29,9 @@
     }
     h1 { font-size: 1.6rem; margin: 0 0 6px; letter-spacing: -0.02em; }
     .sub { color: var(--muted); margin: 0 0 28px; }
+    #health { margin: -16px 0 22px; font-size: 0.9rem; }
+    #health.ok { color: var(--ok); }
+    #health.error { color: var(--rec); }
     .warn {
       border: 1px solid var(--line);
       background: var(--card);
@@ -131,6 +134,7 @@
   <main>
     <h1>Spoken language identification</h1>
     <p class="sub">MMS-LID-126 · AIE1903 Group 3 · language code only, not a transcript</p>
+    <p id="health" class="sub">Checking local server...</p>
     <p class="warn">Keep <code>demo_server.py</code> running. CPU inference often takes 10–20 seconds. Watch the yellow result box, not only the word “Done”.</p>
 
     <div class="grid">
@@ -186,6 +190,7 @@
   <script>
     const statusEl = document.getElementById("status");
     const resultEl = document.getElementById("result");
+    const healthEl = document.getElementById("health");
     const samplePlayer = document.getElementById("samplePlayer");
     const ownPlayer = document.getElementById("ownPlayer");
     const recBtn = document.getElementById("recBtn");
@@ -204,6 +209,23 @@
     function setStatus(t, kind) {
       statusEl.textContent = t;
       statusEl.className = kind || "";
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || res.statusText);
+        const sampleCount = (data.available_samples || []).length;
+        const caseCount = (data.available_cases || []).length;
+        healthEl.textContent =
+          `Server online · ${data.model_id} · ${data.threads} CPU thread(s) · ` +
+          `${sampleCount} dataset clip(s), ${caseCount} check clip(s)`;
+        healthEl.className = "ok";
+      } catch (err) {
+        healthEl.textContent = "Server offline or health check failed: " + err.message;
+        healthEl.className = "error";
+      }
     }
 
     function stamp() {
@@ -424,32 +446,38 @@
     });
 
     recBtn.addEventListener("click", async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const ctx = new AudioContext();
-      const src = ctx.createMediaStreamSource(stream);
-      const proc = ctx.createScriptProcessor(4096, 1, 1);
-      const mute = ctx.createGain();
-      mute.gain.value = 0;
-      const chunks = [];
-      proc.onaudioprocess = (ev) => {
-        chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
-      };
-      src.connect(proc);
-      proc.connect(mute);
-      mute.connect(ctx.destination);
-      recState = { stream, ctx, proc, chunks, sr: ctx.sampleRate, t0: Date.now() };
-      recBtn.disabled = true;
-      stopBtn.disabled = false;
-      saveBtn.disabled = true;
-      ownBtn.disabled = true;
-      recMeter.classList.add("on");
-      recTime.textContent = "0.0";
-      recTimer = setInterval(() => {
-        const s = ((Date.now() - recState.t0) / 1000).toFixed(1);
-        recTime.textContent = s;
-        setStatus("RECORDING now · " + s + " s · click Stop when you finish.", "busy");
-      }, 100);
-      setStatus("RECORDING started. Speak 3–5 seconds.", "busy");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = new AudioContext();
+        const src = ctx.createMediaStreamSource(stream);
+        const proc = ctx.createScriptProcessor(4096, 1, 1);
+        const mute = ctx.createGain();
+        mute.gain.value = 0;
+        const chunks = [];
+        proc.onaudioprocess = (ev) => {
+          chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
+        };
+        src.connect(proc);
+        proc.connect(mute);
+        mute.connect(ctx.destination);
+        recState = { stream, ctx, proc, chunks, sr: ctx.sampleRate, t0: Date.now() };
+        recBtn.disabled = true;
+        stopBtn.disabled = false;
+        saveBtn.disabled = true;
+        ownBtn.disabled = true;
+        recMeter.classList.add("on");
+        recTime.textContent = "0.0";
+        recTimer = setInterval(() => {
+          const s = ((Date.now() - recState.t0) / 1000).toFixed(1);
+          recTime.textContent = s;
+          setStatus("RECORDING now · " + s + " s · click Stop when you finish.", "busy");
+        }, 100);
+        setStatus("RECORDING started. Speak 3–5 seconds.", "busy");
+      } catch (err) {
+        recBtn.disabled = false;
+        stopBtn.disabled = true;
+        setStatus("Microphone unavailable: " + err.message + ". Use the file picker instead.");
+      }
     });
 
     stopBtn.addEventListener("click", async () => {
@@ -479,6 +507,7 @@
       }
     });
 
+    refreshHealth();
     refreshSaved();
   </script>
 </body>

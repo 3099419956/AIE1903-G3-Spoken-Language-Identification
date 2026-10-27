@@ -66,7 +66,8 @@
 
 ## 现场演示顺序
 
-课前 20 分钟启动 `python demo_server.py`，确认模型已加载，并关闭会占用麦克风的应用。
+课前 20 分钟启动 `python demo_server.py --open-browser`，检查页面顶部显示
+“Server online”，并关闭会占用麦克风的应用。
 
 建议现场只运行两个实时案例：
 

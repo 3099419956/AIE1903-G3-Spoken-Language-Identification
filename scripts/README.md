@@ -9,7 +9,9 @@ Result text goes in `docs/results/`.
 
 ```text
 python demo_server.py
+python demo_server.py --port 9000 --threads 2 --open-browser
 python predict.py samples\aishell_cmn_BAC009S0770W0259.wav
+python predict.py --mode pipeline --json samples\librispeech_eng_6930-75918-0000.wav
 python run_lid.py
 python eval_challenges.py
 python eval_improved.py
@@ -19,9 +21,10 @@ python run_third_lang.py
 
 | File | Role |
 |------|------|
-| `predict.py` | CLI: one wav → Top-5. Does not call `pipeline.py` |
+| `predict.py` | CLI: whole-clip or full pipeline, multiple files, text or JSON |
+| `cli_options.py` | shared validated arguments for the CLI and demo server |
 | `pipeline.py` | five checks around the frozen model; `demo_server.py` and `eval_pipeline.py` call this |
-| `demo_server.py` | local page at http://127.0.0.1:8765/ (record timer, save wav, Identify) |
+| `demo_server.py` | local page and `/api/health`; supports host, port, threads, and browser launch |
 | `demo/index.html` | dataset clips, five case buttons, step list, microphone |
 | `recordings/` | wavs written when Stop is clicked (gitignored). This repository still saves on Stop |
 | `run_lid.py` | whole-clip LID on AISHELL + LibriSpeech |

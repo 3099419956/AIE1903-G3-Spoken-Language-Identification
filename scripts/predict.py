@@ -1,74 +1,109 @@
-"""Entry script: one wav file in, MMS-LID-126 Top-5 out. Official whole-clip inference."""
-import sys
+"""Command-line inference for the frozen MMS language identification model."""
+
+import json
 from pathlib import Path
 
 from runtime import configure_cache
 
 configure_cache()
 
-import numpy as np
 import soundfile as sf
 import torch
 from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
-MODEL_ID = "facebook/mms-lid-126"
-TARGET_SR = 16000
-MAX_SECONDS = 8.0
-TOP_K = 5
+from cli_options import build_predict_parser
+from pipeline import run as run_pipeline
+from pipeline import to_mono_16k, topk
 
 
-def load_16k(path: Path) -> tuple[np.ndarray, int]:
-    wav, sr = sf.read(str(path), dtype="float32")
-    if wav.ndim > 1:
-        wav = wav[:, 0]
-    x = np.asarray(wav, dtype=np.float32)
-    orig_sr = int(sr)
-    if orig_sr != TARGET_SR:
-        import librosa
+def predict_whole(model, processor, path: Path, model_id: str, top_k: int) -> dict:
+    wav, source_sr = sf.read(str(path), dtype="float32")
+    x, format_note = to_mono_16k(wav, int(source_sr))
+    ranked = topk(model, processor, x, k=top_k)
+    lang, score = ranked[0]
+    return {
+        "file": str(path),
+        "model": model_id,
+        "mode": "whole",
+        "source_sample_rate": int(source_sr),
+        "duration_s": x.shape[0] / 16000,
+        "decision": lang,
+        "top1_score": score,
+        "top5": [{"rank": i, "code": code, "score": s} for i, (code, s) in enumerate(ranked, 1)],
+        "steps": [{"name": "format", "action": "done", "detail": format_note}],
+    }
 
-        x = np.asarray(librosa.resample(y=x, orig_sr=orig_sr, target_sr=TARGET_SR), dtype=np.float32)
-    n = int(MAX_SECONDS * TARGET_SR)
-    if x.shape[0] > n:
-        x = x[:n]
-    return x, orig_sr
+
+def predict_pipeline(model, processor, path: Path, model_id: str, top_k: int) -> dict:
+    wav, source_sr = sf.read(str(path), dtype="float32")
+    out = run_pipeline(model, processor, wav, int(source_sr))
+    out["file"] = str(path)
+    out["model"] = model_id
+    out["mode"] = "pipeline"
+    out["source_sample_rate"] = int(source_sr)
+    out["top5"] = out.get("top5", [])[:top_k]
+    return out
+
+
+def print_result(result: dict) -> None:
+    print("File:", result["file"])
+    print("Model:", result["model"])
+    print("Mode:", result["mode"])
+    print("Original sample rate:", result["source_sample_rate"])
+    print("Duration used (seconds):", round(result["duration_s"], 3))
+    print("Decision:", result["decision"])
+
+    if result.get("snr_db") is not None:
+        print("Estimated SNR (dB):", round(float(result["snr_db"]), 2))
+
+    steps = result.get("steps") or []
+    if steps:
+        print("Pipeline:")
+        for step in steps:
+            print(f"  {step['name']:<10} {step['action']:<7} {step['detail']}")
+
+    print(f"Top-{len(result.get('top5') or [])}:")
+    for row in result.get("top5") or []:
+        print(f"  {row['rank']}. {row['code']:<7} {row['score']:.6f}")
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: python predict.py path\\to\\audio.wav")
-        print("Example: python predict.py samples\\aishell_cmn_BAC009S0770W0259.wav")
-        print("Output: ISO 639-3 language codes (cmn/eng/kor/...), not a transcript.")
-        sys.exit(1)
+    args = build_predict_parser().parse_args()
+    torch.set_num_threads(args.threads)
 
-    path = Path(sys.argv[1])
-    if not path.is_file():
+    existing = [path for path in args.audio if path.is_file()]
+    missing = [path for path in args.audio if not path.is_file()]
+    for path in missing:
         print("File not found:", path)
-        sys.exit(1)
 
-    torch.set_num_threads(1)
-    wav, orig_sr = load_16k(path)
-    dur = wav.shape[0] / float(TARGET_SR)
+    results: list[dict] = []
+    if existing:
+        print(f"Loading {args.model} on CPU with {args.threads} thread(s)...", flush=True)
+        processor = AutoFeatureExtractor.from_pretrained(args.model)
+        model = Wav2Vec2ForSequenceClassification.from_pretrained(args.model)
+        model.eval()
 
-    print("Model:", MODEL_ID)
-    print("File:", path)
-    print("Original sample rate:", orig_sr)
-    print("Duration used (seconds):", round(dur, 3), "(cap", MAX_SECONDS, "s)")
-    print("Loading model...")
-    processor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
-    model.eval()
+        predictor = predict_pipeline if args.mode == "pipeline" else predict_whole
+        for path in existing:
+            result = predictor(model, processor, path, args.model, args.top_k)
+            results.append(result)
+            if not args.as_json and args.output is None:
+                print_result(result)
+                print()
 
-    inputs = processor(wav, sampling_rate=TARGET_SR, return_tensors="pt")
-    with torch.no_grad():
-        logits = model(**inputs).logits
-    probs = torch.softmax(logits.float(), dim=-1)[0]
-    values, indices = torch.topk(probs, k=TOP_K)
-    ranked = [(str(model.config.id2label[int(i)]), float(s)) for s, i in zip(values.tolist(), indices.tolist())]
+    if args.output is not None:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(
+            json.dumps(results, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        print("Wrote", args.output)
+    elif args.as_json:
+        payload = results[0] if len(results) == 1 else results
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
 
-    print("Top-1:", ranked[0][0], "score:", f"{ranked[0][1]:.6f}")
-    print("Top-5:")
-    for n, (lang, score) in enumerate(ranked, start=1):
-        print(f"  {n}. {lang}  {score:.6f}")
+    if missing:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

@@ -11,9 +11,10 @@ Why the *task* matters belongs in the **slides** (evaluation item 1), not here. 
 
 ```text
 scripts/
-  predict.py              command-line entry: any wav -> Top-5
+  predict.py              command line: whole-clip or full pipeline, text/JSON
+  cli_options.py          shared command-line arguments and validation
   pipeline.py             five checks around the frozen model
-  demo_server.py          local HTML page (upload / record / dataset clips)
+  demo_server.py          local HTML page plus configurable HTTP server
   demo/index.html         the page served at http://127.0.0.1:8765/
   eval_pipeline.py        score those five checks on local challenge wavs
   run_lid.py              whole-clip LID on AISHELL + LibriSpeech
@@ -46,19 +47,26 @@ HTML demo (dataset clips + microphone / upload):
 
 ```text
 python demo_server.py
+python demo_server.py --port 9000 --threads 2 --open-browser
 ```
 
 Then open Chrome at `http://127.0.0.1:8765/` . Leave the terminal open. First load of the model is ~30 s on CPU.
+`GET /api/health` reports model readiness, CPU threads, and available demo clips.
 
 The Record button shows a red timer. In this repository, Stop writes a wav under `scripts/recordings/`. Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
 
-Command-line entry (same official whole-clip LID):
+Command-line entry:
 
 ```text
 python predict.py samples\aishell_cmn_BAC009S0770W0259.wav
-python predict.py samples\librispeech_eng_6930-75918-0000.wav
-python predict.py samples\minds14_kor_602bef265f67b421554f65e7.wav
+python predict.py --mode pipeline --json samples\librispeech_eng_6930-75918-0000.wav
+python predict.py --mode pipeline --top-k 3 --threads 2 samples\a.wav samples\b.wav
+python predict.py --mode pipeline --output outputs\predictions.json samples\a.wav
 ```
+
+The default `whole` mode reports the official full-clip label. `pipeline` mode
+also applies silence checks, confidence rejection, optional denoising, and mixed
+speech detection. `--output` always writes JSON.
 
 Reproducing the tables:
 
@@ -72,7 +80,8 @@ python run_third_lang.py
 
 | Script | Reads | Writes |
 |--------|--------|--------|
-| `predict.py` | any wav path you pass. It does not call `pipeline.py` | prints Top-5 (does not write a new wav) |
+| `predict.py` | one or more audio paths; `--mode whole` or `--mode pipeline` | text, JSON, or a JSON output file |
+| `cli_options.py` | no data | validated arguments shared by the CLI and demo server |
 | `run_lid.py` | `AISHELL_CACHE` and `LIBRI_PARQUET` environment variables, only to rebuild the two clips | `scripts/samples/aishell_*.wav` and `librispeech_*.wav` |
 | `eval_challenges.py` | those two samples in `scripts/samples/` | `scripts/challenges/*.wav` and `docs/results/challenges_baseline.txt` |
 | `eval_improved.py` | `scripts/challenges/*.wav` | `docs/results/challenges_improved.txt` |
@@ -111,17 +120,19 @@ python -m compileall -q scripts
 - Frozen model: the course-suggested Wav2Vec2 language classification checkpoint with 126 labels.
 - The paper fine-tunes an MMS 1B pretrained model. We only run inference with the released checkpoint and do not train its weights.
 - Our code: inference, HTTP demo, and evaluation modules under `scripts/`; no training loop.
-- `demo_server.py` uses up to 8 CPU threads. `predict.py`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, and `run_third_lang.py` use 1 thread.
+- `demo_server.py` and `predict.py` accept a validated `--threads` value. The remaining evaluation scripts use 1 thread.
 - Runtime: one 4 s clip is often 10–20 s on CPU. `eval_improved.py` runs many 1 s forwards.
 - We do not fine-tune the encoder or load the paper's 1B ASR model.
 
 ## Group contribution
 
-Evaluation item 5 asks for this. Fan Rui wrote the code. The other three members own presentation sections. The slide file is not in this repository.
+Evaluation item 5 asks for this. Fan Rui owns the model pipeline and evaluation.
+Zhu Zhiming owns the command-line and web-demo implementation. The slide file is
+not in this repository.
 
 | Member | Code in this repository | Presentation |
 |--------|-------------------------|--------------|
-| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
+| Fan Rui | `pipeline.py`, model inference, data preparation, and main evaluation scripts | paper difficulties, the preprocessing checks, and the plan to train only a small head |
 | Han Sihao | no source file | paper and model: MMS, mean-pool, why 126 |
 | Qian Chen | no source file | task: input, output, and why language identification comes first |
-| Zhu Zhiming | no source file | implementation, command line, and the web demo |
+| Zhu Zhiming | `predict.py`, `cli_options.py`, demo-server options and health endpoint, frontend status, and CLI tests | implementation, command line, and the web demo |

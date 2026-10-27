@@ -5,7 +5,8 @@
 `facebook/mms-lid-126`。
 
 > 当前状态（2026-10-27）：`scripts/` 里是推理和评测，没有训练脚本。
-> 网页走 `pipeline.py`。`predict.py` 不走这五步，只做官方整段识别。
+> 网页走 `pipeline.py`。`predict.py` 默认做官方整段识别，也可以用
+> `--mode pipeline` 运行完整检查，并输出 JSON。
 > 原始 wav 和模型权重不入库。PPT 不在本仓库。代码贡献见下面的 Contribution。
 >
 > 怎么跑：见 `docs/CODE.md` 与 `scripts/README.md`。
@@ -89,16 +90,17 @@ python -m compileall -q scripts
 - 冻结模型：课程建议的 Wav2Vec2 语种分类 checkpoint，最后接到 126 个语言。
 - 论文使用 MMS 1B 预训练模型并微调全部参数；本仓库只加载 126 语种 checkpoint 做推理，没有训练循环。
 - 我们的代码：`scripts/` 下的推理、网页和评测模块，没有修改模型权重。
-- 网页最多用 8 个 CPU 线程。`predict.py`、`run_lid.py`、`eval_challenges.py`、`eval_improved.py`、`run_third_lang.py` 仍固定 1 个线程。
+- 网页和 `predict.py` 的 CPU 线程数可通过命令行设置；其余评测脚本仍固定 1 个线程。
 - 一条大约 4 秒的录音，在 CPU 上常常要十几秒。我们没有训练或微调模型权重。
 
 ## Contribution
 
-代码由 Fan Rui 完成，占本组工作的绝大部分。另外三人负责汇报，不负责本仓库里的源代码。PPT 文件不在本仓库。
+Fan Rui 完成模型流水线和主要评测；Zhu Zhiming 完成命令行扩展、网页服务参数和演示健康检查。
+另外两人负责汇报内容。PPT 文件不在本仓库。
 
 | 成员 | 代码 | 汇报 |
 |------|------|------|
-| Fan Rui | `scripts/` 下全部推理、网页和评测，以及本 README、`docs/CODE.md`、`scripts/README.md` | 论文难点、预处理检查、下半学期只训练小头 |
+| Fan Rui | `pipeline.py`、模型推理、数据准备和主要评测脚本 | 论文难点、预处理检查、下半学期只训练小头 |
 | Han Sihao | 无源代码 | 论文和模型：MMS、mean-pool、为什么是 126 |
 | Qian Chen | 无源代码 | 任务：输入、输出，以及为什么要先判断语言 |
-| Zhu Zhiming | 无源代码 | 实现、命令行和网页演示 |
+| Zhu Zhiming | `predict.py` 的命令行扩展、`cli_options.py`、网页服务参数、健康检查、前端状态和对应测试 | 实现、命令行和网页演示 |

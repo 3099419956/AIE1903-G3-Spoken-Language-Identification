@@ -1,8 +1,8 @@
 """Local HTML demo: dataset clips + your own recording -> MMS-LID-126 Top-5."""
 import io
 import json
-import os
 import threading
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
@@ -16,15 +16,11 @@ import soundfile as sf
 import torch
 from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
+from cli_options import build_demo_parser
 from http_form import MAX_UPLOAD_BYTES, parse_multipart_form, safe_wav_name
 from pipeline import run as run_pipeline
 
 MODEL_ID = "facebook/mms-lid-126"
-TARGET_SR = 16000
-MAX_SECONDS = 8.0
-TOP_K = 5
-HOST = "127.0.0.1"
-PORT = 8765
 ROOT = Path(__file__).resolve().parent
 HTML = ROOT / "demo" / "index.html"
 SAMPLE_DIR = ROOT / "samples"
@@ -75,20 +71,7 @@ NAMES = {
 PROCESSOR = None
 MODEL = None
 INFER_LOCK = threading.Lock()
-
-
-def to_16k(wav: np.ndarray, sr: int) -> np.ndarray:
-    x = np.asarray(wav, dtype=np.float32)
-    if x.ndim > 1:
-        x = x[:, 0]
-    if int(sr) != TARGET_SR:
-        import librosa
-
-        x = np.asarray(librosa.resample(y=x, orig_sr=int(sr), target_sr=TARGET_SR), dtype=np.float32)
-    n = int(MAX_SECONDS * TARGET_SR)
-    if x.shape[0] > n:
-        x = x[:n]
-    return x
+SERVER_INFO: dict[str, object] = {}
 
 
 def predict_array(wav: np.ndarray, sr: int, source: str) -> dict:
@@ -130,6 +113,10 @@ def list_recordings() -> list[str]:
     return names[:40]
 
 
+class DemoServer(ThreadingHTTPServer):
+    allow_reuse_address = True
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args) -> None:
         print(self.address_string(), fmt % args)
@@ -150,6 +137,23 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             self._send(200, HTML.read_bytes(), "text/html; charset=utf-8")
+            return
+        if path == "/api/health":
+            self._json(
+                200,
+                {
+                    "status": "ok",
+                    "model_id": MODEL_ID,
+                    "model_loaded": MODEL is not None,
+                    "threads": SERVER_INFO.get("threads"),
+                    "available_samples": [
+                        key for key, wav_path in SAMPLES.items() if wav_path.is_file()
+                    ],
+                    "available_cases": [
+                        key for key, wav_path in CASES.items() if wav_path.is_file()
+                    ],
+                },
+            )
             return
         if path.startswith("/sample-audio/"):
             key = path.rsplit("/", 1)[-1]
@@ -263,10 +267,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    global PROCESSOR, MODEL
-    n_threads = min(8, os.cpu_count() or 4)
-    torch.set_num_threads(n_threads)
-    print("Loading", MODEL_ID, "once (CPU, ~30s, threads=%d)..." % n_threads, flush=True)
+    global PROCESSOR, MODEL, MODEL_ID
+    args = build_demo_parser().parse_args()
+    MODEL_ID = args.model
+    torch.set_num_threads(args.threads)
+    print(
+        f"Loading {MODEL_ID} once (CPU, ~30s, threads={args.threads})...",
+        flush=True,
+    )
     PROCESSOR = AutoFeatureExtractor.from_pretrained(MODEL_ID)
     MODEL = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
     MODEL.eval()
@@ -274,10 +282,31 @@ def main() -> None:
     missing = [k for k, p in SAMPLES.items() if not p.is_file()]
     if missing:
         print("Missing sample wavs:", missing)
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("Open in Chrome: http://127.0.0.1:%d/" % PORT, flush=True)
+    missing_cases = [k for k, p in CASES.items() if not p.is_file()]
+    if missing_cases:
+        print("Missing challenge wavs:", missing_cases)
+
+    server = DemoServer((args.host, args.port), Handler)
+    SERVER_INFO.update(
+        {
+            "host": args.host,
+            "port": server.server_port,
+            "threads": args.threads,
+        }
+    )
+    display_host = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
+    url = f"http://{display_host}:{server.server_port}/"
+    print("Demo:", url, flush=True)
+    print("Health:", url + "api/health", flush=True)
     print("Leave this window open. Ctrl+C to stop.", flush=True)
-    server.serve_forever()
+    if args.open_browser:
+        webbrowser.open(url)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping demo.")
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
