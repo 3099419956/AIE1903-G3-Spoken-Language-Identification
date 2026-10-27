@@ -1,6 +1,7 @@
 """Third language check: Korean from MINDS-14 vs existing Mandarin/English clips."""
 import io
 import os
+import sys
 from pathlib import Path
 
 os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
@@ -20,7 +21,8 @@ MAX_SECONDS = 8.0
 TOP_K = 5
 MIN_SECONDS = 2.0
 
-SAMPLE_DIR = Path(r"C:\aie1903\lid_project\samples")
+ROOT = Path(__file__).resolve().parent
+SAMPLE_DIR = ROOT / "samples"
 SAMPLE_DIR.mkdir(parents=True, exist_ok=True)
 CMN_WAV = SAMPLE_DIR / "aishell_cmn_BAC009S0770W0259.wav"
 ENG_WAV = SAMPLE_DIR / "librispeech_eng_6930-75918-0000.wav"
@@ -123,6 +125,11 @@ def predict_one(name: str, gold: str, wav: np.ndarray, processor, model) -> str:
 
 
 def main() -> None:
+    missing = [p.name for p in (CMN_WAV, ENG_WAV) if not p.is_file()]
+    if missing:
+        print("Missing sample wavs in", SAMPLE_DIR)
+        print("Need:", ", ".join(missing))
+        sys.exit(1)
     torch.set_num_threads(1)
     print("Loading model:", MODEL_ID)
     processor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
@@ -143,7 +150,8 @@ def main() -> None:
     rows.append(predict_one("librispeech_eng_6930-75918-0000", "eng", load_wav(ENG_WAV), processor, model))
     rows.append(predict_one(kor_name, "kor", kor_16k, processor, model))
 
-    out = Path(r"C:\aie1903\lid_project\third_lang.txt")
+    out = ROOT.parent / "docs" / "results" / "third_lang.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         "Three-language check with MMS-LID-126 (cmn / eng / kor).\n"
         "Korean clip is ONE utterance from PolyAI/minds14 ko-KR, not the full set.\n\n"

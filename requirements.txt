@@ -1,6 +1,6 @@
 torch>=2.2
 torchaudio>=2.2
-transformers>=4.48,<5
+transformers>=5.20
 accelerate>=0.30
 safetensors>=0.4
 datasets>=3.0

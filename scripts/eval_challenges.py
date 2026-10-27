@@ -1,5 +1,6 @@
 """Build a challenge set and run baseline MMS-LID-126 (no improvements yet)."""
 import os
+import sys
 from pathlib import Path
 
 os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
@@ -16,8 +17,9 @@ TARGET_SR = 16000
 TOP_K = 3
 RNG = np.random.default_rng(0)
 
-SAMPLE_DIR = Path(r"C:\aie1903\lid_project\samples")
-CHALLENGE_DIR = Path(r"C:\aie1903\lid_project\challenges")
+ROOT = Path(__file__).resolve().parent
+SAMPLE_DIR = ROOT / "samples"
+CHALLENGE_DIR = ROOT / "challenges"
 CHALLENGE_DIR.mkdir(parents=True, exist_ok=True)
 
 CMN_WAV = SAMPLE_DIR / "aishell_cmn_BAC009S0770W0259.wav"
@@ -85,6 +87,12 @@ def topk(logits: torch.Tensor, id2label: dict, k: int) -> list[tuple[str, float]
 
 
 def main() -> None:
+    missing = [p.name for p in (CMN_WAV, ENG_WAV) if not p.is_file()]
+    if missing:
+        print("Missing sample wavs in", SAMPLE_DIR)
+        print("Need:", ", ".join(missing))
+        print("Rebuild them with run_lid.py after setting AISHELL_CACHE and LIBRI_PARQUET.")
+        sys.exit(1)
     cmn = load_16k(CMN_WAV)
     eng = load_16k(ENG_WAV)
     cmn_1s = crop_speech(cmn, 1.0)
@@ -144,7 +152,8 @@ def main() -> None:
         print("Single-language accuracy:", f"{n_ok}/{n_single} = {100.0 * n_ok / n_single:.1f}%")
     print("mixed clips have no single gold label; low score or flip is the point.")
 
-    out = Path(r"C:\aie1903\lid_project\challenges_baseline.txt")
+    out = ROOT.parent / "docs" / "results" / "challenges_baseline.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(
         "Baseline MMS-LID-126 on challenge set (no sliding window / reject yet).\n\n"
         + "\n".join(rows)

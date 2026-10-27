@@ -3,8 +3,8 @@
 Runnable entry points for Group 3 LID. Run these from this `scripts/` folder
 in the conda env `speech_processing`. Hugging Face cache: `C:\aie1903\hf`.
 
-Fan Rui's day-to-day working copy is still `C:\aie1903\lid_project`.
-This folder is the same code, laid out for the group repo.
+Paths are next to these scripts. Wavs go in `samples/` and `challenges/`.
+Result text goes in `docs/results/`.
 
 ```text
 python demo_server.py
@@ -18,11 +18,11 @@ python run_third_lang.py
 
 | File | Role |
 |------|------|
-| `predict.py` | CLI: one wav → Top-5 language scores |
-| `pipeline.py` | five checks around the frozen model; the webpage calls this |
+| `predict.py` | CLI: one wav → Top-5. Does not call `pipeline.py` |
+| `pipeline.py` | five checks around the frozen model; `demo_server.py` and `eval_pipeline.py` call this |
 | `demo_server.py` | local page at http://127.0.0.1:8765/ (record timer, save wav, Identify) |
 | `demo/index.html` | dataset clips, five case buttons, step list, microphone |
-| `recordings/` | live wavs written on Stop (gitignored) |
+| `recordings/` | wavs written when Stop is clicked (gitignored). This repository still saves on Stop |
 | `run_lid.py` | whole-clip LID on AISHELL + LibriSpeech |
 | `eval_challenges.py` | short / noise / concat baseline |
 | `eval_improved.py` | earlier sliding-window experiment |
@@ -32,5 +32,5 @@ python run_third_lang.py
 The webpage checks, in order: mono 16 kHz; stop if almost silent; trim silent edges only; one official whole-clip label. Denoise (dns48) runs only when the clip is noisy and the top score is below 0.5. One-second slices run only when the top two scores look like two languages. `pip install denoiser` is needed only for that rare denoise branch. Model weights stay frozen.
 
 Do not commit `samples/*.wav` or `challenges/*.wav` (gitignored).
-Local copies live here and under `data/raw/`. Metric logs are in `docs/results/`.
-How-to-run notes: `docs/CODE.md`.
+Put those wavs next to the scripts. `data/raw/` is not read.
+Metric logs are in `docs/results/`. How-to-run notes: `docs/CODE.md`.

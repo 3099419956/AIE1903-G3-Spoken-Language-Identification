@@ -24,21 +24,21 @@ scripts/
   challenges/             crops / noise / silence / 1 s+1 s concat (not committed)
 ```
 
-Paths inside the scripts are Windows absolute paths (`C:\aie1903\...`). Do not put API tokens in this folder.
+Every script finds samples, challenges, and logs from its own folder.
+`scripts/samples/` and `scripts/challenges/` hold the wavs. Result text goes to `docs/results/`.
+`run_lid.py` does not contain a personal dataset path. Set `AISHELL_CACHE` and `LIBRI_PARQUET` only when rebuilding the two original clips.
+Do not put API tokens in this folder.
 
 ## Environment
 
 - Conda env `speech_processing`, Python 3.10, CPU PyTorch
 - Hugging Face cache: `C:\aie1903\hf`
 - Interpreter we used: `D:\Anaconda3\envs\speech_processing\python.exe`
-- Packages: `torch`, `transformers`, `soundfile`, `numpy`, `librosa`, `pyarrow`, `huggingface_hub`
-- Optional: `denoiser` (Facebook dns48). The webpage imports it only when a clip is both noisy and the whole-clip score is below 0.5.
+- Tested versions: `torch 2.14.0+cpu`, `transformers 5.20.0`
+- Packages used by the scripts: `torch`, `transformers`, `soundfile`, `numpy`, `librosa`, `pyarrow`, `huggingface_hub`
+- Optional: `denoiser` (Facebook dns48). `pipeline.py` imports it only when a clip is noisy and the whole-clip score is below 0.5. It is not in `requirements.txt`.
 
-Working directory:
-
-```text
-C:\aie1903\lid_project
-```
+Run the scripts from `scripts/`.
 
 ## How to run
 
@@ -50,7 +50,7 @@ python demo_server.py
 
 Then open Chrome at `http://127.0.0.1:8765/` . Leave the terminal open. First load of the model is ~30 s on CPU.
 
-The Record button shows a red timer. Stop writes a wav under `scripts/recordings/` (or `recordings/` next to `demo_server.py`). Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
+The Record button shows a red timer. In this repository, Stop writes a wav under `scripts/recordings/`. Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
 
 Command-line entry (same official whole-clip LID):
 
@@ -72,14 +72,14 @@ python run_third_lang.py
 
 | Script | Reads | Writes |
 |--------|--------|--------|
-| `predict.py` | any wav path you pass | prints Top-5 (does not write a new wav) |
-| `run_lid.py` | AISHELL wav under `C:\d` (id `BAC009S0770W0259`); LibriSpeech parquet `C:\aie1903\assignment1\data\huggingface_librispeech_test_clean\all\test.clean\0000.parquet` | `samples/aishell_*.wav`, `samples/librispeech_*.wav` |
-| `eval_challenges.py` | those two samples | `challenges/*.wav`, `challenges_baseline.txt` |
-| `eval_improved.py` | `challenges/*.wav` | `challenges_improved.txt` |
-| `eval_pipeline.py` | `scripts/challenges/*.wav` (skipped if that folder is empty) | `docs/results/pipeline_eval.txt` |
-| `run_third_lang.py` | the two samples + downloads one MINDS-14 `ko-KR` row | `samples/minds14_kor_*.wav`, `third_lang.txt` |
+| `predict.py` | any wav path you pass. It does not call `pipeline.py` | prints Top-5 (does not write a new wav) |
+| `run_lid.py` | `AISHELL_CACHE` and `LIBRI_PARQUET` environment variables, only to rebuild the two clips | `scripts/samples/aishell_*.wav` and `librispeech_*.wav` |
+| `eval_challenges.py` | those two samples in `scripts/samples/` | `scripts/challenges/*.wav` and `docs/results/challenges_baseline.txt` |
+| `eval_improved.py` | `scripts/challenges/*.wav` | `docs/results/challenges_improved.txt` |
+| `eval_pipeline.py` | `scripts/challenges/*.wav`. A missing file is skipped | `docs/results/pipeline_eval.txt` |
+| `run_third_lang.py` | the two samples in `scripts/samples/`, plus one downloaded MINDS-14 `ko-KR` row | `scripts/samples/minds14_kor_*.wav` and `docs/results/third_lang.txt` |
 
-First use of the model downloads weights into `C:\aie1903\hf`. Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`.
+If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`. The `file=` column in the committed logs shows the folder used on the day of that run. Current scripts write under `scripts/` and `docs/results/`.
 
 ## Wrapper (our code, not a new model)
 
@@ -96,17 +96,18 @@ First use of the model downloads weights into `C:\aie1903\hf`. Keep clips short 
 ## Complexity
 
 - Frozen model: Wav2Vec2 sequence classifier, ~1B parameters; 1280 → 1024 projector, then 126-way linear head.
-- Our code: a few hundred lines of Python, no training loop.
-- Runtime: one 4 s clip is tens of seconds on CPU; `eval_improved.py` is many 1 s forwards (a few minutes).
-- We do not fine-tune the 1B encoder on CPU.
+- Our code: eight Python files under `scripts/`, about 1200 lines, no training loop.
+- `demo_server.py` uses up to 8 CPU threads. `predict.py`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, and `run_third_lang.py` use 1 thread.
+- Runtime: one 4 s clip is often 10–20 s on CPU. `eval_improved.py` runs many 1 s forwards.
+- We do not fine-tune the 1B encoder.
 
 ## Group contribution
 
-Fill the empty rows before submit. Item 5 asks for this in the README.
+Evaluation item 5 asks for this. Fan Rui wrote the code. The other three members own presentation sections. The slide file is not in this repository.
 
-| Member | Code / files |
-|--------|----------------|
-| Fan Rui | `predict.py`, `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, `run_third_lang.py`, this README |
-| Han Sihao | |
-| Qian Chen | |
-| Zhu Zhiming | |
+| Member | Code in this repository | Presentation |
+|--------|-------------------------|--------------|
+| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | implementation, command line, and the web demo |
+| Han Sihao | no source file | paper and model: MMS, mean-pool, why 126 |
+| Qian Chen | no source file | task: input, output, and why language identification comes first |
+| Zhu Zhiming | no source file | paper difficulties, the preprocessing checks, and the plan to train only a small head |
