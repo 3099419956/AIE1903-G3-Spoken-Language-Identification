@@ -10,35 +10,35 @@ Why the *task* matters belongs in the **slides** (evaluation item 1), not here. 
 ## Layout
 
 ```text
-lid_project/
+scripts/
   predict.py              command-line entry: any wav -> Top-5
+  pipeline.py             five checks around the frozen model
   demo_server.py          local HTML page (upload / record / dataset clips)
   demo/index.html         the page served at http://127.0.0.1:8765/
+  eval_pipeline.py        score those five checks on local challenge wavs
   run_lid.py              whole-clip LID on AISHELL + LibriSpeech
   eval_challenges.py      build challenge wavs; whole-clip baseline
-  eval_improved.py        sliding window + reject + whole-clip fallback
+  eval_improved.py        earlier sliding window + reject + fallback
   run_third_lang.py       same model on one Korean clip (plus cmn/eng)
-  samples/                three real 16 kHz wavs (not TTS)
-  challenges/             crops / noise / silence / 1 s+1 s concat
-  challenges_baseline.txt
-  challenges_improved.txt
-  third_lang.txt
+  samples/                three real 16 kHz wavs (not committed)
+  challenges/             crops / noise / silence / 1 s+1 s concat (not committed)
 ```
 
-Paths inside the scripts are Windows absolute paths (`C:\aie1903\...`). Do not put API tokens in this folder.
+Every script finds samples, challenges, and logs from its own folder.
+`scripts/samples/` and `scripts/challenges/` hold the wavs. Result text goes to `docs/results/`.
+`run_lid.py` does not contain a personal dataset path. Set `AISHELL_CACHE` and `LIBRI_PARQUET` only when rebuilding the two original clips.
+Do not put API tokens in this folder.
 
 ## Environment
 
 - Conda env `speech_processing`, Python 3.10, CPU PyTorch
 - Hugging Face cache: `C:\aie1903\hf`
 - Interpreter we used: `D:\Anaconda3\envs\speech_processing\python.exe`
-- Packages: `torch`, `transformers`, `soundfile`, `numpy`, `librosa`, `pyarrow`, `huggingface_hub`
+- Tested versions: `torch 2.14.0+cpu`, `transformers 5.20.0`
+- Packages used by the scripts: `torch`, `transformers`, `soundfile`, `numpy`, `librosa`, `pyarrow`, `huggingface_hub`
+- Optional: `denoiser` (Facebook dns48). `pipeline.py` imports it only when a clip is noisy and the whole-clip score is below 0.5. It is not in `requirements.txt`.
 
-Working directory:
-
-```text
-C:\aie1903\lid_project
-```
+Run the scripts from `scripts/`.
 
 ## How to run
 
@@ -50,7 +50,7 @@ python demo_server.py
 
 Then open Chrome at `http://127.0.0.1:8765/` . Leave the terminal open. First load of the model is ~30 s on CPU.
 
-The Record button shows a red timer. Stop writes a wav under `scripts/recordings/` (or `recordings/` next to `demo_server.py`). Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
+The Record button shows a red timer. In this repository, Stop writes a wav under `scripts/recordings/`. Pick that file later and click Identify. Live wavs are gitignored. CPU inference often takes 10–20 s; the yellow result box updates when it finishes.
 
 Command-line entry (same official whole-clip LID):
 
@@ -66,45 +66,48 @@ Reproducing the tables:
 python run_lid.py
 python eval_challenges.py
 python eval_improved.py
+python eval_pipeline.py
 python run_third_lang.py
 ```
 
 | Script | Reads | Writes |
 |--------|--------|--------|
-| `predict.py` | any wav path you pass | prints Top-5 (does not write a new wav) |
-| `run_lid.py` | AISHELL wav under `C:\d` (id `BAC009S0770W0259`); LibriSpeech parquet `C:\aie1903\assignment1\data\huggingface_librispeech_test_clean\all\test.clean\0000.parquet` | `samples/aishell_*.wav`, `samples/librispeech_*.wav` |
-| `eval_challenges.py` | those two samples | `challenges/*.wav`, `challenges_baseline.txt` |
-| `eval_improved.py` | `challenges/*.wav` | `challenges_improved.txt` |
-| `run_third_lang.py` | the two samples + downloads one MINDS-14 `ko-KR` row | `samples/minds14_kor_*.wav`, `third_lang.txt` |
+| `predict.py` | any wav path you pass. It does not call `pipeline.py` | prints Top-5 (does not write a new wav) |
+| `run_lid.py` | `AISHELL_CACHE` and `LIBRI_PARQUET` environment variables, only to rebuild the two clips | `scripts/samples/aishell_*.wav` and `librispeech_*.wav` |
+| `eval_challenges.py` | those two samples in `scripts/samples/` | `scripts/challenges/*.wav` and `docs/results/challenges_baseline.txt` |
+| `eval_improved.py` | `scripts/challenges/*.wav` | `docs/results/challenges_improved.txt` |
+| `eval_pipeline.py` | `scripts/challenges/*.wav`. A missing file is skipped | `docs/results/pipeline_eval.txt` |
+| `run_third_lang.py` | the two samples in `scripts/samples/`, plus one downloaded MINDS-14 `ko-KR` row | `scripts/samples/minds14_kor_*.wav` and `docs/results/third_lang.txt` |
 
-First use of the model downloads weights into `C:\aie1903\hf`. Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`.
+If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep clips short (scripts cap at 8 s). `eval_improved.py` must run after `eval_challenges.py`. The `file=` column in the committed logs shows the folder used on the day of that run. Current scripts write under `scripts/` and `docs/results/`.
 
 ## Wrapper (our code, not a new model)
 
-`mms-lid-126` mean-pools time, so one forward pass → one label. Extra logic is in `eval_improved.py`:
+`mms-lid-126` mean-pools time, so one forward pass → one label. The webpage does not change the weights. `pipeline.py` only decides what to feed it:
 
-1. Energy onset (skip leading silence)
-2. 1.0 s window, 0.5 s hop
-3. Drop a window if top-1 score < 0.5 (`uncertain`)
-4. If kept windows disagree → `mixed:lang1+lang2`
-5. If every window is dropped → one whole-clip forward (helps noisy Mandarin)
+1. Mono, 16 kHz (cap 8 s)
+2. Almost no energy → `no-speech`
+3. Trim silent edges only
+4. One official whole-clip label
+5. Extra work only when that label is weak: dns48 if noisy and score < 0.5; 1 s slices if the top two scores look like two languages. `mixed` requires exactly two confident languages.
 
-Expected numbers on this machine are in the `*.txt` logs. Baseline single-language 8/9; wrapper HIT 10 / REJECT 1 / MISS 0. Concat test is **1 s Mandarin + 1 s English**, not arbitrary code-switching.
+`eval_improved.py` is the earlier challenge-set experiment (window, reject, whole-clip fallback). The webpage does not use that fallback. On this machine `eval_pipeline.py` scored OK 12/12; the live mic row is recorded as SEE and is not part of the 12. A noisy flag does not by itself turn on denoising. Concat test is **1 s Mandarin + 1 s English**, not arbitrary code-switching. Logs: `docs/results/`.
 
 ## Complexity
 
 - Frozen model: Wav2Vec2 sequence classifier, ~1B parameters; 1280 → 1024 projector, then 126-way linear head.
-- Our code: a few hundred lines of Python, no training loop.
-- Runtime: one 4 s clip is tens of seconds on CPU; `eval_improved.py` is many 1 s forwards (a few minutes).
-- We do not fine-tune the 1B encoder on CPU.
+- Our code: eight Python files under `scripts/`, about 1200 lines, no training loop.
+- `demo_server.py` uses up to 8 CPU threads. `predict.py`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, and `run_third_lang.py` use 1 thread.
+- Runtime: one 4 s clip is often 10–20 s on CPU. `eval_improved.py` runs many 1 s forwards.
+- We do not fine-tune the 1B encoder.
 
 ## Group contribution
 
-Fill the empty rows before submit. Item 5 asks for this in the README.
+Evaluation item 5 asks for this. Fan Rui wrote the code. The other three members own presentation sections. The slide file is not in this repository.
 
-| Member | Code / files |
-|--------|----------------|
-| Fan Rui | `predict.py`, `demo_server.py`, `demo/index.html`, `run_lid.py`, `eval_challenges.py`, `eval_improved.py`, `run_third_lang.py`, this README |
-| Han Sihao | |
-| Qian Chen | |
-| Zhu Zhiming | |
+| Member | Code in this repository | Presentation |
+|--------|-------------------------|--------------|
+| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
+| Han Sihao | no source file | paper and model: MMS, mean-pool, why 126 |
+| Qian Chen | no source file | task: input, output, and why language identification comes first |
+| Zhu Zhiming | no source file | implementation, command line, and the web demo |

@@ -1,5 +1,6 @@
 """Sliding-window LID + low-confidence reject on the same challenge set."""
 import os
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -18,7 +19,8 @@ WIN_S = 1.0
 HOP_S = 0.5
 MIN_SCORE = 0.50
 
-CHALLENGE_DIR = Path(r"C:\aie1903\lid_project\challenges")
+ROOT = Path(__file__).resolve().parent
+CHALLENGE_DIR = ROOT / "challenges"
 GOLD = {
     "cmn_clean": "cmn",
     "eng_clean": "eng",
@@ -167,6 +169,11 @@ def judge(gold: str, decision: str) -> str:
 
 
 def main() -> None:
+    missing = [name for name in GOLD if not (CHALLENGE_DIR / (name + ".wav")).is_file()]
+    if missing:
+        print("Missing challenge wavs in", CHALLENGE_DIR)
+        print("Run python eval_challenges.py first.")
+        sys.exit(1)
     torch.set_num_threads(1)
     print("Loading model:", MODEL_ID)
     print(f"Window {WIN_S}s, hop {HOP_S}s, reject if score < {MIN_SCORE}")
@@ -210,7 +217,8 @@ def main() -> None:
     print(summary)
     print("Star * means the window passed the confidence gate.")
     lines.extend(["", summary])
-    out_path = Path(r"C:\aie1903\lid_project\challenges_improved.txt")
+    out_path = ROOT.parent / "docs" / "results" / "challenges_improved.txt"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("Wrote", out_path)
 

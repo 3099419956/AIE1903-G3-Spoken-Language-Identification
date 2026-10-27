@@ -1,6 +1,7 @@
 """Group 3 LID inference: facebook/mms-lid-126 on two Assignment 1/2 clips."""
 import io
 import os
+import sys
 from pathlib import Path
 
 os.environ.setdefault("HF_HOME", r"C:\aie1903\hf")
@@ -18,17 +19,14 @@ MAX_SECONDS = 8.0
 TOP_K = 5
 
 AISHELL_ID = "BAC009S0770W0259"
-AISHELL_CACHE = Path(r"C:\d")
 LIBRI_ID = "6930-75918-0000"
-LIBRI_PARQUET = Path(
-    r"C:\aie1903\assignment1\data\huggingface_librispeech_test_clean\all\test.clean\0000.parquet"
-)
-SAMPLE_DIR = Path(r"C:\aie1903\lid_project\samples")
+ROOT = Path(__file__).resolve().parent
+SAMPLE_DIR = ROOT / "samples"
 SAMPLE_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_aishell_wav() -> Path:
-    matches = list(AISHELL_CACHE.rglob(AISHELL_ID + ".wav"))
+def find_aishell_wav(cache: Path) -> Path:
+    matches = list(cache.rglob(AISHELL_ID + ".wav"))
     if not matches:
         raise FileNotFoundError("AISHELL WAV not found: " + AISHELL_ID)
     return matches[0]
@@ -41,8 +39,8 @@ def load_wav(path: Path) -> tuple[np.ndarray, int]:
     return np.asarray(waveform, dtype=np.float32), int(sample_rate)
 
 
-def load_librispeech() -> tuple[np.ndarray, int]:
-    table = pq.read_table(LIBRI_PARQUET)
+def load_librispeech(parquet_path: Path) -> tuple[np.ndarray, int]:
+    table = pq.read_table(parquet_path)
     ids = table["id"].to_pylist()
     row = ids.index(LIBRI_ID)
     audio_bytes = table["audio"][row].as_py()["bytes"]
@@ -96,6 +94,16 @@ def predict_one(name: str, waveform: np.ndarray, sample_rate: int, processor, mo
 
 
 def main() -> None:
+    cache = os.environ.get("AISHELL_CACHE", "")
+    parquet = os.environ.get("LIBRI_PARQUET", "")
+    if not cache or not parquet:
+        print("This script rebuilds two sample wavs from the original datasets.")
+        print("Those datasets are not in the repository.")
+        print("Set AISHELL_CACHE to the folder that contains " + AISHELL_ID + ".wav")
+        print("Set LIBRI_PARQUET to the LibriSpeech test.clean parquet file.")
+        print("To score a wav you already have, use: python predict.py path\\to\\file.wav")
+        sys.exit(1)
+
     torch.set_num_threads(1)
     print("HF_HOME:", os.environ["HF_HOME"])
     print("Loading model:", MODEL_ID)
@@ -105,10 +113,10 @@ def main() -> None:
     print("Model loaded. Device: CPU")
     print()
 
-    aishell_wav, aishell_sr = load_wav(find_aishell_wav())
+    aishell_wav, aishell_sr = load_wav(find_aishell_wav(Path(cache)))
     predict_one("aishell_cmn_" + AISHELL_ID, aishell_wav, aishell_sr, processor, model)
 
-    libri_wav, libri_sr = load_librispeech()
+    libri_wav, libri_sr = load_librispeech(Path(parquet))
     predict_one("librispeech_eng_" + LIBRI_ID, libri_wav, libri_sr, processor, model)
 
 
