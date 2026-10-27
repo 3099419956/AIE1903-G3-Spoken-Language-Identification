@@ -107,7 +107,7 @@ Evaluation item 5 asks for this. Fan Rui wrote the code. The other three members
 
 | Member | Code in this repository | Presentation |
 |--------|-------------------------|--------------|
-| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | implementation, command line, and the web demo |
+| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
 | Han Sihao | no source file | paper and model: MMS, mean-pool, why 126 |
 | Qian Chen | no source file | task: input, output, and why language identification comes first |
-| Zhu Zhiming | no source file | paper difficulties, the preprocessing checks, and the plan to train only a small head |
+| Zhu Zhiming | no source file | implementation, command line, and the web demo |

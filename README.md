@@ -86,7 +86,7 @@ $env:HF_HOME = "D:\hf-cache"
 
 | 成员 | 代码 | 汇报 |
 |------|------|------|
-| Fan Rui | `scripts/` 下全部推理、网页和评测，以及本 README、`docs/CODE.md`、`scripts/README.md` | 实现、命令行和网页演示 |
+| Fan Rui | `scripts/` 下全部推理、网页和评测，以及本 README、`docs/CODE.md`、`scripts/README.md` | 论文难点、预处理检查、下半学期只训练小头 |
 | Han Sihao | 无源代码 | 论文和模型：MMS、mean-pool、为什么是 126 |
 | Qian Chen | 无源代码 | 任务：输入、输出，以及为什么要先判断语言 |
-| Zhu Zhiming | 无源代码 | 论文难点、预处理检查、下半学期只训练小头 |
+| Zhu Zhiming | 无源代码 | 实现、命令行和网页演示 |
