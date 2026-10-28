@@ -150,16 +150,19 @@ def _windows(model, processor, wav: np.ndarray) -> list[dict]:
 
 def denoise_dns48(wav: np.ndarray) -> np.ndarray:
     global _DENOISER
-    if _DENOISER is None:
-        from denoiser.pretrained import dns48
+    try:
+        if _DENOISER is None:
+            from denoiser.pretrained import dns48
 
-        _DENOISER = dns48(pretrained=True)
-        _DENOISER.eval()
-    mix = torch.from_numpy(np.asarray(wav, dtype=np.float32)).unsqueeze(0)
-    with torch.no_grad():
-        out = _DENOISER(mix)
-    y = out.squeeze().detach().cpu().numpy().astype(np.float32)
-    return y[: wav.shape[0]]
+            _DENOISER = dns48(pretrained=True)
+            _DENOISER.eval()
+        mix = torch.from_numpy(np.asarray(wav, dtype=np.float32)).unsqueeze(0)
+        with torch.no_grad():
+            out = _DENOISER(mix)
+        y = out.squeeze().detach().cpu().numpy().astype(np.float32)
+        return y[: wav.shape[0]]
+    except Exception as exc:  # denoiser not installed or weights unavailable
+        raise RuntimeError("denoiser unavailable: " + str(exc)) from exc
 
 
 def _step(name: str, action: str, detail: str) -> dict:
@@ -220,15 +223,20 @@ def run(model, processor, wav: np.ndarray, sr: int) -> dict:
     steps.append(_step("path", "whole", f"{dur:.2f}s, official whole-clip LID"))
 
     if noisy and score < MIN_SCORE:
-        y = denoise_dns48(x)
-        ranked2 = topk(model, processor, y)
-        lang2, score2 = ranked2[0]
-        steps.append(
-            _step("denoise", "done", f"dns48 because noisy and score {score:.3f}; after {lang2} {score2:.3f}")
-        )
-        x = y
-        ranked = ranked2
-        lang, score = lang2, score2
+        try:
+            y = denoise_dns48(x)
+        except RuntimeError as exc:
+            steps.append(_step("denoise", "skip", str(exc)))
+            y = None
+        if y is not None:
+            ranked2 = topk(model, processor, y)
+            lang2, score2 = ranked2[0]
+            steps.append(
+                _step("denoise", "done", f"dns48 because noisy and score {score:.3f}; after {lang2} {score2:.3f}")
+            )
+            x = y
+            ranked = ranked2
+            lang, score = lang2, score2
     else:
         why = "clean" if not noisy else f"noisy but whole-clip score {score:.3f} is already high"
         steps.append(_step("denoise", "skip", why))
