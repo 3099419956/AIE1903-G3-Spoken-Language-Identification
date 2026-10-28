@@ -94,11 +94,11 @@ python -m compileall -q scripts
 
 ## Contribution
 
-代码主体是 Fan Rui 的预处理、网页和整段评测。另外三人也各有脚本，并负责读论文和准备自己的汇报。PPT 文件不在本仓库。
+Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. Each of the other three members owns one script, one paper-reading task, and one presentation section. The slide file is not in this repository.
 
-| 成员 | 做了什么 |
-|------|----------|
-| Fan Rui | 代码：`pipeline.py`、`demo_server.py`、`demo/index.html`、`eval_pipeline.py`、`eval_improved.py`，以及本 README、`docs/CODE.md`、`scripts/README.md`。实验：短音频拒识、噪声门、dns48 和其他降噪的对比、现场麦克风录音。汇报：论文难点、预处理检查、下半学期只训练小头。 |
-| Han Sihao | 代码：`run_third_lang.py`，在同一个冻结模型上检查韩语。文献：阅读 MMS 论文里 wav2vec 2.0 预训练、LID 头、mean-pool、126 种语言（FLEURS 与 VoxLingua-107 的并集）以及 Table 7 为何不在 CPU 上整模微调。汇报：论文和模型。 |
-| Qian Chen | 代码：`eval_challenges.py`、`data/README.md`，整理短音频、噪声和中英拼接测试，并写明 AISHELL、LibriSpeech、MINDS-14 三条录音的来源。文献：对照论文第 6 节，说明许多 ASR 仍是单语，所以要先做语种识别，而不是转写。汇报：任务的输入、输出和意义。 |
-| Zhu Zhiming | 代码：`predict.py`、`run_lid.py`，官方整段识别入口和中英基线。核对三段干净录音的 Top-1 大约是 0.999，并整理命令行和网页的运行步骤。汇报：实现、命令行和网页演示。 |
+| Member | Contribution |
+|--------|----------------|
+| Fan Rui | Code: `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md`. Experiments: short-clip rejection, the noise gate, the dns48 comparison, and the live microphone recordings. Talk: paper difficulties, the preprocessing checks, and the plan to train only a small head. |
+| Han Sihao | Code: `run_third_lang.py`, one Korean clip on the same frozen model. Reading: MMS pretraining, the LID head, mean-pool, the 126-language set as the union of FLEURS and VoxLingua-107, and why Table 7 is not fully fine-tuned on CPU. Talk: paper and model. |
+| Qian Chen | Code: `eval_challenges.py` and `data/README.md`, the short, noisy, and concatenated clips, plus the AISHELL, LibriSpeech, and MINDS-14 sources. Reading: paper section 6. Many ASR systems are still monolingual, so language identification comes before transcription. Talk: task input, output, and why it matters. |
+| Zhu Zhiming | Code: `predict.py` and `run_lid.py`, the official whole-clip entry and the Mandarin/English baseline. Checked that the three clean clips score about 0.999, and wrote the command-line and demo run steps. Talk: implementation, command line, and the web demo. |
