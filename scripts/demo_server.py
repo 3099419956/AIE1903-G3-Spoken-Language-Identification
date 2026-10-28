@@ -14,12 +14,11 @@ configure_cache()
 import numpy as np
 import soundfile as sf
 import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
 from http_form import MAX_UPLOAD_BYTES, parse_multipart_form, safe_wav_name
+from lid import load_model, resolve_model_dir
 from pipeline import run as run_pipeline
 
-MODEL_ID = "facebook/mms-lid-126"
 TARGET_SR = 16000
 MAX_SECONDS = 8.0
 TOP_K = 5
@@ -75,20 +74,6 @@ NAMES = {
 PROCESSOR = None
 MODEL = None
 INFER_LOCK = threading.Lock()
-
-
-def to_16k(wav: np.ndarray, sr: int) -> np.ndarray:
-    x = np.asarray(wav, dtype=np.float32)
-    if x.ndim > 1:
-        x = x[:, 0]
-    if int(sr) != TARGET_SR:
-        import librosa
-
-        x = np.asarray(librosa.resample(y=x, orig_sr=int(sr), target_sr=TARGET_SR), dtype=np.float32)
-    n = int(MAX_SECONDS * TARGET_SR)
-    if x.shape[0] > n:
-        x = x[:n]
-    return x
 
 
 def predict_array(wav: np.ndarray, sr: int, source: str) -> dict:
@@ -264,18 +249,24 @@ class Handler(BaseHTTPRequestHandler):
 
 def main() -> None:
     global PROCESSOR, MODEL
+    import argparse
+
+    ap = argparse.ArgumentParser(description="MMS LID-126 HTML demo server")
+    ap.add_argument("--model_dir", default=None, help="local model directory")
+    ap.add_argument("--host", default=HOST)
+    ap.add_argument("--port", type=int, default=PORT)
+    args = ap.parse_args()
+
     n_threads = min(8, os.cpu_count() or 4)
     torch.set_num_threads(n_threads)
-    print("Loading", MODEL_ID, "once (CPU, ~30s, threads=%d)..." % n_threads, flush=True)
-    PROCESSOR = AutoFeatureExtractor.from_pretrained(MODEL_ID)
-    MODEL = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
-    MODEL.eval()
-    print("Model ready.")
+    print("Loading model from", resolve_model_dir(args.model_dir), "once (CPU, ~30s, threads=%d)..." % n_threads, flush=True)
+    MODEL, PROCESSOR, device = load_model(args.model_dir, device="cpu")
+    print("Model ready. Device:", device)
     missing = [k for k, p in SAMPLES.items() if not p.is_file()]
     if missing:
         print("Missing sample wavs:", missing)
-    server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print("Open in Chrome: http://127.0.0.1:%d/" % PORT, flush=True)
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    print("Open in Chrome: http://%s:%d/" % (args.host, args.port), flush=True)
     print("Leave this window open. Ctrl+C to stop.", flush=True)
     server.serve_forever()
 

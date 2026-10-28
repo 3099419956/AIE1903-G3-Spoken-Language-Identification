@@ -9,15 +9,13 @@ configure_cache()
 import numpy as np
 import soundfile as sf
 import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
 
+from lid import load_model
 from pipeline import TARGET_SR, run
 
 ROOT = Path(__file__).resolve().parent
 CHAL = ROOT / "challenges"
 LOG = ROOT.parent / "docs" / "results" / "pipeline_eval.txt"
-MODEL_ID = "facebook/mms-lid-126"
-
 CASES = [
     ("cmn_clean.wav", "cmn"),
     ("eng_clean.wav", "eng"),
@@ -50,10 +48,15 @@ def judge(gold: str, decision: str) -> str:
 
 
 def main() -> None:
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Score the webpage pipeline")
+    ap.add_argument("--model_dir", default=None)
+    args = ap.parse_args()
+
     torch.set_num_threads(min(8, os.cpu_count() or 4))
-    processor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
-    model.eval()
+    model, processor, device = load_model(args.model_dir, device="cpu")
+    print("Model device:", device)
 
     silence = np.zeros(TARGET_SR * 2, dtype=np.float32)
     extra = [("silence_2s", "no-speech", silence, TARGET_SR)]

@@ -1,4 +1,14 @@
-"""Entry script: one wav file in, MMS-LID-126 Top-5 out. Official whole-clip inference."""
+"""Entry script: one wav file in, MMS-LID-126 Top-K out. Official whole-clip inference.
+
+The model is loaded from a local directory, never from the network::
+
+    python predict.py path\\to\\audio.wav
+    python predict.py path\\to\\audio.wav --model_dir D:\\models\\mms-lid-126
+
+Set ``MMS_LID_MODEL_DIR`` once to avoid passing ``--model_dir`` every time.
+"""
+
+import argparse
 import sys
 from pathlib import Path
 
@@ -6,67 +16,37 @@ from runtime import configure_cache
 
 configure_cache()
 
-import numpy as np
-import soundfile as sf
-import torch
-from transformers import AutoFeatureExtractor, Wav2Vec2ForSequenceClassification
-
-MODEL_ID = "facebook/mms-lid-126"
-TARGET_SR = 16000
-MAX_SECONDS = 8.0
-TOP_K = 5
-
-
-def load_16k(path: Path) -> tuple[np.ndarray, int]:
-    wav, sr = sf.read(str(path), dtype="float32")
-    if wav.ndim > 1:
-        wav = wav[:, 0]
-    x = np.asarray(wav, dtype=np.float32)
-    orig_sr = int(sr)
-    if orig_sr != TARGET_SR:
-        import librosa
-
-        x = np.asarray(librosa.resample(y=x, orig_sr=orig_sr, target_sr=TARGET_SR), dtype=np.float32)
-    n = int(MAX_SECONDS * TARGET_SR)
-    if x.shape[0] > n:
-        x = x[:n]
-    return x, orig_sr
+from lid import DEFAULT_TOP_K, MAX_SECONDS, TARGET_SR, load_16k, load_model, predict, resolve_model_dir
 
 
 def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: python predict.py path\\to\\audio.wav")
-        print("Example: python predict.py samples\\aishell_cmn_BAC009S0770W0259.wav")
-        print("Output: ISO 639-3 language codes (cmn/eng/kor/...), not a transcript.")
-        sys.exit(1)
+    ap = argparse.ArgumentParser(description="MMS LID-126 inference")
+    ap.add_argument("input", help="path to a wav/flac/mp3 file")
+    ap.add_argument("--model_dir", default=None, help="local model directory")
+    ap.add_argument("--top_k", type=int, default=DEFAULT_TOP_K)
+    ap.add_argument("--max_seconds", type=float, default=MAX_SECONDS)
+    ap.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    args = ap.parse_args()
 
-    path = Path(sys.argv[1])
+    path = Path(args.input)
     if not path.is_file():
         print("File not found:", path)
         sys.exit(1)
 
-    torch.set_num_threads(1)
-    wav, orig_sr = load_16k(path)
+    wav, orig_sr = load_16k(path, max_seconds=args.max_seconds)
     dur = wav.shape[0] / float(TARGET_SR)
 
-    print("Model:", MODEL_ID)
+    print("Model dir:", resolve_model_dir(args.model_dir))
     print("File:", path)
     print("Original sample rate:", orig_sr)
-    print("Duration used (seconds):", round(dur, 3), "(cap", MAX_SECONDS, "s)")
+    print("Duration used (seconds):", round(dur, 3), "(cap", args.max_seconds, "s)")
     print("Loading model...")
-    processor = AutoFeatureExtractor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2ForSequenceClassification.from_pretrained(MODEL_ID)
-    model.eval()
+    model, processor, device = load_model(args.model_dir, args.device)
+    print("Device:", device)
 
-    inputs = processor(wav, sampling_rate=TARGET_SR, return_tensors="pt")
-    with torch.no_grad():
-        logits = model(**inputs).logits
-    probs = torch.softmax(logits.float(), dim=-1)[0]
-    values, indices = torch.topk(probs, k=TOP_K)
-    ranked = [(str(model.config.id2label[int(i)]), float(s)) for s, i in zip(values.tolist(), indices.tolist())]
-
+    ranked = predict(model, processor, wav, top_k=args.top_k)
     print("Top-1:", ranked[0][0], "score:", f"{ranked[0][1]:.6f}")
-    print("Top-5:")
+    print("Top-%d:" % args.top_k)
     for n, (lang, score) in enumerate(ranked, start=1):
         print(f"  {n}. {lang}  {score:.6f}")
 
