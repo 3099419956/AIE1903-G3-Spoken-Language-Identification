@@ -103,11 +103,11 @@ If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep 
 
 ## Group contribution
 
-Evaluation item 5 asks for this. Fan Rui wrote the code. The other three members own presentation sections. The slide file is not in this repository.
+Evaluation item 5 asks for this. Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. Each other member owns one runnable piece. The slide file is not in this repository.
 
 | Member | Code in this repository | Presentation |
 |--------|-------------------------|--------------|
-| Fan Rui | all inference, demo, and evaluation files under `scripts/`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
-| Han Sihao | no source file | paper and model: MMS, mean-pool, why 126 |
-| Qian Chen | no source file | task: input, output, and why language identification comes first |
-| Zhu Zhiming | no source file | implementation, command line, and the web demo |
+| Fan Rui | `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
+| Han Sihao | `run_third_lang.py`: the same frozen model on one Korean clip | paper and model: MMS, mean-pool, why 126 |
+| Qian Chen | `eval_challenges.py` and `data/README.md`: short, noisy, and concatenated test clips | task: input, output, and why language identification comes first |
+| Zhu Zhiming | `predict.py` and `run_lid.py`: official whole-clip entry and the Mandarin/English baseline | implementation, command line, and the web demo |

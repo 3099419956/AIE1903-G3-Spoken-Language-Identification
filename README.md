@@ -82,11 +82,11 @@ $env:HF_HOME = "D:\hf-cache"
 
 ## Contribution
 
-代码由 Fan Rui 完成，占本组工作的绝大部分。另外三人负责汇报，不负责本仓库里的源代码。PPT 文件不在本仓库。
+代码主体是 Fan Rui 的预处理、网页和整段评测。另外三人也各有一块可运行脚本。PPT 文件不在本仓库。
 
 | 成员 | 代码 | 汇报 |
 |------|------|------|
-| Fan Rui | `scripts/` 下全部推理、网页和评测，以及本 README、`docs/CODE.md`、`scripts/README.md` | 论文难点、预处理检查、下半学期只训练小头 |
-| Han Sihao | 无源代码 | 论文和模型：MMS、mean-pool、为什么是 126 |
-| Qian Chen | 无源代码 | 任务：输入、输出，以及为什么要先判断语言 |
-| Zhu Zhiming | 无源代码 | 实现、命令行和网页演示 |
+| Fan Rui | `pipeline.py`，`demo_server.py`，`demo/index.html`，`eval_pipeline.py`，`eval_improved.py`，以及本 README、`docs/CODE.md`、`scripts/README.md` | 论文难点、预处理检查、下半学期只训练小头 |
+| Han Sihao | `run_third_lang.py`：同一冻结模型上的韩语检查 | 论文和模型：MMS、mean-pool、为什么是 126 |
+| Qian Chen | `eval_challenges.py`，`data/README.md`：短音频、噪声和拼接测试集 | 任务：输入、输出，以及为什么要先判断语言 |
+| Zhu Zhiming | `predict.py`，`run_lid.py`：官方整段识别入口，以及中英两条基线 | 实现、命令行和网页演示 |
