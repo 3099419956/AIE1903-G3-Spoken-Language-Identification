@@ -117,11 +117,11 @@ python -m compileall -q scripts
 
 ## Group contribution
 
-Evaluation item 5 asks for this. Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. The other members each own one script, a paper-reading task, and one presentation section. The slide file is not in this repository.
+Evaluation item 5 asks for this. Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. Each of the other three members owns one script, one paper-reading task, and one presentation section. The slide file is not in this repository.
 
 | Member | Contribution |
 |--------|----------------|
-| Fan Rui | Code: `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, `README.md`, `docs/CODE.md`, `scripts/README.md`. Experiments: short-clip rejection, the noise gate, the dns48 comparison, and the live microphone recordings. Talk: paper difficulties, preprocessing checks, and training only a small head next. |
+| Fan Rui | Code: `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md`. Experiments: short-clip rejection, the noise gate, the dns48 comparison, and the live microphone recordings. Talk: paper difficulties, the preprocessing checks, and the plan to train only a small head. |
 | Han Sihao | Code: `run_third_lang.py`, one Korean clip on the same frozen model. Reading: MMS pretraining, the LID head, mean-pool, the 126-language set as the union of FLEURS and VoxLingua-107, and why Table 7 is not fully fine-tuned on CPU. Talk: paper and model. |
-| Qian Chen | Code: `eval_challenges.py` and `data/README.md` for the short, noisy, and concatenated clips, including AISHELL, LibriSpeech, and MINDS-14 provenance. Reading: paper section 6, monolingual ASR, so language identification comes before transcription. Talk: task input, output, and why it matters. |
+| Qian Chen | Code: `eval_challenges.py` and `data/README.md`, the short, noisy, and concatenated clips, plus the AISHELL, LibriSpeech, and MINDS-14 sources. Reading: paper section 6. Many ASR systems are still monolingual, so language identification comes before transcription. Talk: task input, output, and why it matters. |
 | Zhu Zhiming | Code: `predict.py` and `run_lid.py`, the official whole-clip entry and the Mandarin/English baseline. Checked that the three clean clips score about 0.999, and wrote the command-line and demo run steps. Talk: implementation, command line, and the web demo. |
