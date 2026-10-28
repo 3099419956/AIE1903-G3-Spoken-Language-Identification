@@ -103,11 +103,11 @@ If `HF_HOME` is unset, the scripts use `C:\aie1903\hf` as the model cache. Keep 
 
 ## Group contribution
 
-Evaluation item 5 asks for this. Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. Each other member owns one runnable piece. The slide file is not in this repository.
+Evaluation item 5 asks for this. Fan Rui owns the preprocessing pipeline, the web demo, and the main evaluation. The other members each own one script, a paper-reading task, and one presentation section. The slide file is not in this repository.
 
-| Member | Code in this repository | Presentation |
-|--------|-------------------------|--------------|
-| Fan Rui | `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, plus `README.md`, `docs/CODE.md`, and `scripts/README.md` | paper difficulties, the preprocessing checks, and the plan to train only a small head |
-| Han Sihao | `run_third_lang.py`: the same frozen model on one Korean clip | paper and model: MMS, mean-pool, why 126 |
-| Qian Chen | `eval_challenges.py` and `data/README.md`: short, noisy, and concatenated test clips | task: input, output, and why language identification comes first |
-| Zhu Zhiming | `predict.py` and `run_lid.py`: official whole-clip entry and the Mandarin/English baseline | implementation, command line, and the web demo |
+| Member | Contribution |
+|--------|----------------|
+| Fan Rui | Code: `pipeline.py`, `demo_server.py`, `demo/index.html`, `eval_pipeline.py`, `eval_improved.py`, `README.md`, `docs/CODE.md`, `scripts/README.md`. Experiments: short-clip rejection, the noise gate, the dns48 comparison, and the live microphone recordings. Talk: paper difficulties, preprocessing checks, and training only a small head next. |
+| Han Sihao | Code: `run_third_lang.py`, one Korean clip on the same frozen model. Reading: MMS pretraining, the LID head, mean-pool, the 126-language set as the union of FLEURS and VoxLingua-107, and why Table 7 is not fully fine-tuned on CPU. Talk: paper and model. |
+| Qian Chen | Code: `eval_challenges.py` and `data/README.md` for the short, noisy, and concatenated clips, including AISHELL, LibriSpeech, and MINDS-14 provenance. Reading: paper section 6, monolingual ASR, so language identification comes before transcription. Talk: task input, output, and why it matters. |
+| Zhu Zhiming | Code: `predict.py` and `run_lid.py`, the official whole-clip entry and the Mandarin/English baseline. Checked that the three clean clips score about 0.999, and wrote the command-line and demo run steps. Talk: implementation, command line, and the web demo. |
